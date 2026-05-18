@@ -1,7 +1,7 @@
 {
   "name": "df-vr-player",
   "version": "0.1.0",
-  "description": "Mac desktop VR180/VR360 player for local, external, and NAS video files.",
+  "description": "ローカル、外付けドライブ、NAS上のVR180/VR360動画を開けるMac用デスクトッププレイヤー。",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",

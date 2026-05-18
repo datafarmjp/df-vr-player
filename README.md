@@ -1,32 +1,32 @@
 # DF VR Player
 
-DF VR Player is a Mac desktop app for viewing VR180 and VR360 video files.
+DF VR Playerは、Mac上でVR180/VR360動画を見るためのデスクトップアプリです。
 
-It can open videos from local storage, external drives, and NAS locations that are visible in Finder.
+ローカルディスク、外付けドライブ、Finderから見えるNAS上の動画ファイルを開けます。
 
-## Development
+## 開発
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Features
+## 主な機能
 
-- Open `.mp4`, `.mov`, `.m4v`, and `.webm` videos
-- VR180 / VR360 viewing with Three.js
-- 2D, SBS, and Top-Bottom projection modes
-- Automatic projection mode guessing from file names and video size
-- Mouse drag view control
-- Wheel / trackpad zoom
-- Playback, seek, and volume controls
-- Left-eye / right-eye preview for 3D videos
-- Horizontal / vertical flip controls
-- Video history with thumbnails
-- Per-file aliases and alias CSV export
+- `.mp4`, `.mov`, `.m4v`, `.webm` の動画を開く
+- Three.jsによるVR180/VR360表示
+- 2D、Side-by-Side、Top-Bottomの投影モード切り替え
+- ファイル名と動画サイズから投影モードを自動推測
+- マウスドラッグによる視点操作
+- ホイール/トラックパッドによるズーム
+- 再生、一時停止、シーク、音量調整
+- 3D動画の左目/右目プレビュー
+- 左右反転/上下反転
+- サムネイル付き履歴
+- ファイルごとの別名保存とCSV出力
 
-## Notes
+## 補足
 
-NAS videos are supported when they are accessible through Finder, just like regular files.
+NAS上の動画は、Finderから通常のファイルとして見える状態であれば開けます。
 
-For best compatibility, H.264 MP4 files are recommended. HEVC/H.265 playback depends on macOS and Electron/Chromium support.
+互換性を重視する場合はH.264のMP4を推奨します。HEVC/H.265の再生可否は、macOSおよびElectron/Chromium側の対応状況に依存します。
