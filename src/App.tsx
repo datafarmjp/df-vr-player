@@ -9,6 +9,7 @@ import {
   attachThumbnail,
   buildAliasManagerRows,
   buildAliasCsv,
+  clearHistory,
   deleteAliasKeys,
   deleteHistoryItem,
   AliasManagerRow,
@@ -297,6 +298,20 @@ export function App() {
     }
 
     setHistoryItems(deleteHistoryItem(item.id));
+  };
+
+  const removeAllHistoryItems = () => {
+    if (historyItems.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(`履歴をすべて削除しますか？\n\n別名は残ります。`);
+    if (!confirmed) {
+      return;
+    }
+
+    setHistoryItems(clearHistory());
+    setHistoryDiagnostics({});
   };
 
   const exportAliasCsv = () => {
@@ -652,6 +667,7 @@ export function App() {
               onOpen={(item) => void openHistoryItem(item)}
               onRequestRename={setRenamingHistoryItem}
               onDelete={removeHistoryItem}
+              onClear={removeAllHistoryItems}
               onOpenAliasManager={() => setIsAliasManagerOpen(true)}
             />
           </>

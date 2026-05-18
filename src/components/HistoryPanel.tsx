@@ -7,6 +7,7 @@ type HistoryPanelProps = {
   onOpen: (item: HistoryItem) => void;
   onRequestRename: (item: HistoryItem) => void;
   onDelete: (item: HistoryItem) => void;
+  onClear: () => void;
   onOpenAliasManager: () => void;
 };
 
@@ -31,6 +32,7 @@ export function HistoryPanel({
   onOpen,
   onRequestRename,
   onDelete,
+  onClear,
   onOpenAliasManager
 }: HistoryPanelProps) {
   return (
@@ -40,6 +42,9 @@ export function HistoryPanel({
         <div className="history-header-actions">
           <button type="button" onClick={onOpenAliasManager}>
             別名管理
+          </button>
+          <button className="history-clear-button" type="button" onClick={onClear} disabled={items.length === 0} title="履歴を一括削除">
+            全削除
           </button>
           <span>{items.length}/{HISTORY_LIMIT}</span>
         </div>

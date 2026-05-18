@@ -176,6 +176,11 @@ export function deleteHistoryItem(id: string) {
   return next;
 }
 
+export function clearHistory() {
+  saveHistory([]);
+  return [];
+}
+
 export function loadAliases(): Record<string, FileAlias> {
   try {
     const raw = localStorage.getItem(ALIASES_KEY);

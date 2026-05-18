@@ -371,6 +371,20 @@ button.is-active {
   white-space: nowrap;
 }
 
+.history-header-actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.history-clear-button {
+  color: #ffd7dc;
+}
+
+.history-clear-button:not(:disabled):hover {
+  border-color: #8d4653;
+  background: #302027;
+}
+
 .history-header h2 {
   margin: 0;
   font-size: 15px;
