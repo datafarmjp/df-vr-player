@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Info } from "lucide-react";
+import { AboutModal } from "./components/AboutModal";
 import { AliasManagerModal } from "./components/AliasManagerModal";
 import { ControlBar } from "./components/ControlBar";
 import { HistoryPanel } from "./components/HistoryPanel";
@@ -48,6 +50,8 @@ type VideoSource = {
 };
 
 const APP_BUILD = "2026-05-18 auto-projection-1";
+const APP_VERSION = "0.1.3";
+const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
 const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
@@ -101,6 +105,7 @@ export function App() {
   const [historyDiagnostics, setHistoryDiagnostics] = useState<Record<string, string>>({});
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
   const [isAliasManagerOpen, setIsAliasManagerOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [renamingHistoryItem, setRenamingHistoryItem] = useState<HistoryItem | null>(null);
   const [renamingBookmarkItem, setRenamingBookmarkItem] = useState<BookmarkItem | null>(null);
   const [activeSidePanelTab, setActiveSidePanelTab] = useState<SidePanelTab>("history");
@@ -183,7 +188,7 @@ export function App() {
         ...newVideoSettings(source),
         projectionMode: detectedProjection.mode
       },
-      false,
+      true,
       {
         detectProjectionFromVideoSize: detectedProjection.needsVideoSizeLayout
       }
@@ -746,6 +751,9 @@ export function App() {
             </div>
             <div className="top-actions">
               <ProjectionModeSelector value={projectionMode} onChange={setProjectionMode} />
+              <button aria-label="情報" className="top-icon-button" type="button" title="情報" onClick={() => setIsAboutOpen(true)}>
+                <Info size={18} strokeWidth={2.2} />
+              </button>
               <button className={isHistoryVisible ? "is-active" : ""} type="button" onClick={() => setIsHistoryVisible((value) => !value)}>
                 履歴
               </button>
@@ -872,6 +880,19 @@ export function App() {
           onDelete={deleteAliasRow}
           onExportCsv={exportAliasCsv}
           onRename={renameAliasRow}
+        />
+      )}
+      {isAboutOpen && (
+        <AboutModal
+          version={APP_VERSION}
+          onClose={() => setIsAboutOpen(false)}
+          onOpenSupport={() => {
+            if (window.vr180?.openSupport) {
+              void window.vr180.openSupport();
+              return;
+            }
+            window.open(SUPPORT_URL, "_blank", "noopener,noreferrer");
+          }}
         />
       )}
       {renamingHistoryItem && (

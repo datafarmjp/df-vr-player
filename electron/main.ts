@@ -1,9 +1,10 @@
-import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions, shell } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined || !app.isPackaged;
+const supportUrl = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -86,6 +87,10 @@ app.whenReady().then(() => {
 
     const recoveredPath = await findFileInVolumes(fileName);
     return recoveredPath ? createVideoResult(recoveredPath) : null;
+  });
+
+  ipcMain.handle("shell:openSupport", async () => {
+    await shell.openExternal(supportUrl);
   });
 
   createWindow();

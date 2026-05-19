@@ -110,6 +110,19 @@ button.is-active {
   white-space: nowrap;
 }
 
+.top-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.top-icon-button svg {
+  display: block;
+}
+
 .eyebrow {
   margin: 0;
   color: #9ca4b3;
@@ -605,6 +618,66 @@ button.is-active {
   border-radius: 8px;
   background: #15171c;
   box-shadow: 0 24px 70px rgb(0 0 0 / 45%);
+}
+
+.about-modal {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  width: min(440px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid #343842;
+  border-radius: 8px;
+  background: #15171c;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 45%);
+}
+
+.about-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #292d35;
+}
+
+.about-modal-header img {
+  width: 56px;
+  height: 56px;
+  border-radius: 13px;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 35%);
+}
+
+.about-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.about-modal-header p,
+.about-modal-body p {
+  margin: 5px 0 0;
+  color: #9ca4b3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.about-modal-body {
+  padding: 16px 18px;
+}
+
+.about-modal-body .about-copyright {
+  margin-top: 12px;
+  color: #c0c7d2;
+}
+
+.about-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 18px 16px;
+}
+
+.about-modal-actions button {
+  min-height: 32px;
+  padding: 5px 12px;
 }
 
 .rename-modal-header {

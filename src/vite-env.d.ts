@@ -11,6 +11,7 @@ interface Window {
     openVideo: () => Promise<OpenVideoResult>;
     openVideoPath: (path: string) => Promise<OpenVideoResult>;
     recoverVideoByName: (name: string) => Promise<OpenVideoResult>;
+    openSupport: () => Promise<void>;
     getPathForFile: (file: File) => string;
   };
 }
