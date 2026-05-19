@@ -1,4 +1,5 @@
 import {
+  BookmarkPlus,
   Eye,
   FlipHorizontal,
   FlipVertical,
@@ -18,7 +19,9 @@ type ControlBarProps = {
   previewEye: PreviewEye;
   flipX: boolean;
   flipY: boolean;
+  canAddBookmark: boolean;
   onOpen: () => void;
+  onAddBookmark: () => void;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onVolume: (volume: number) => void;
@@ -48,7 +51,9 @@ export function ControlBar({
   previewEye,
   flipX,
   flipY,
+  canAddBookmark,
   onOpen,
+  onAddBookmark,
   onTogglePlay,
   onSeek,
   onVolume,
@@ -67,6 +72,16 @@ export function ControlBar({
       </button>
       <button aria-label={playLabel} className="icon-button" data-tooltip={playLabel} type="button" onClick={onTogglePlay}>
         {isPlaying ? <Pause size={20} strokeWidth={2.2} /> : <Play size={20} strokeWidth={2.2} />}
+      </button>
+      <button
+        aria-label="ブックマーク追加"
+        className="icon-button"
+        data-tooltip="ブックマーク追加"
+        type="button"
+        disabled={!canAddBookmark}
+        onClick={onAddBookmark}
+      >
+        <BookmarkPlus size={20} strokeWidth={2.2} />
       </button>
       <span className="time">{formatTime(currentTime)}</span>
       <input

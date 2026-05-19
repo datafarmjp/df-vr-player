@@ -5,11 +5,17 @@ import { HistoryPanel } from "./components/HistoryPanel";
 import { PlayerView } from "./components/PlayerView";
 import { ProjectionModeSelector } from "./components/ProjectionModeSelector";
 import { RenameAliasModal } from "./components/RenameAliasModal";
+import { RenameBookmarkModal } from "./components/RenameBookmarkModal";
 import {
+  addBookmark,
   attachThumbnail,
+  attachBookmarkThumbnail,
+  BookmarkItem,
   buildAliasManagerRows,
   buildAliasCsv,
+  clearBookmarks,
   clearHistory,
+  deleteBookmark,
   deleteAliasKeys,
   deleteHistoryItem,
   AliasManagerRow,
@@ -19,13 +25,17 @@ import {
   HistoryItem,
   HistorySettings,
   loadAliases,
+  loadBookmarks,
   loadHistory,
+  markBookmarkMissing,
   markHistoryMissing,
   setFileAliasForSource,
   updateAliasKeys,
+  updateBookmarkName,
   updateHistorySettings,
   upsertHistoryItem
 } from "./state/historyStore";
+import { SidePanelTab } from "./components/HistoryPanel";
 import { createVideoThumbnail } from "./vr/createThumbnail";
 import { detectProjectionModeFromName, detectProjectionModeFromVideoSize } from "./vr/detectProjectionMode";
 import { PreviewEye, ProjectionMode } from "./vr/projectionModes";
@@ -44,6 +54,17 @@ const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
 const minHistoryPanelWidth = 220;
 const maxHistoryPanelWidth = 520;
 
+const formatBookmarkTime = (value: number) => {
+  const totalSeconds = Math.max(0, Math.floor(value));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
 const isVideoFile = (file: File) => {
   const lowerName = file.name.toLowerCase();
   return videoExtensions.some((extension) => lowerName.endsWith(extension));
@@ -54,11 +75,15 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const pendingAutoPlayRef = useRef(false);
+  const pendingSeekRef = useRef<number | null>(null);
+  const pendingPlayAfterSeekRef = useRef(false);
+  const currentBookmarkOpenRef = useRef<string | null>(null);
   const pendingProjectionDetectionRef = useRef<{ sourceId: string } | null>(null);
   const dragStartRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [currentSourceId, setCurrentSourceId] = useState<string | null>(null);
+  const [currentSourceName, setCurrentSourceName] = useState<string>("未選択");
   const [fileName, setFileName] = useState<string>("未選択");
   const [projectionMode, setProjectionMode] = useState<ProjectionMode>("vr180-sbs");
   const [previewEye, setPreviewEye] = useState<PreviewEye>("left");
@@ -71,11 +96,14 @@ export function App() {
   const [resetSignal, setResetSignal] = useState(0);
   const [zoomResetSignal, setZoomResetSignal] = useState(0);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(() => loadHistory());
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => loadBookmarks());
   const [aliases, setAliases] = useState<Record<string, FileAlias>>(() => loadAliases());
   const [historyDiagnostics, setHistoryDiagnostics] = useState<Record<string, string>>({});
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
   const [isAliasManagerOpen, setIsAliasManagerOpen] = useState(false);
   const [renamingHistoryItem, setRenamingHistoryItem] = useState<HistoryItem | null>(null);
+  const [renamingBookmarkItem, setRenamingBookmarkItem] = useState<BookmarkItem | null>(null);
+  const [activeSidePanelTab, setActiveSidePanelTab] = useState<SidePanelTab>("history");
   const [isHistoryVisible, setIsHistoryVisible] = useState(() => localStorage.getItem(HISTORY_PANEL_VISIBLE_KEY) !== "false");
   const [historyPanelWidth, setHistoryPanelWidth] = useState(() => {
     const storedWidth = Number(localStorage.getItem(HISTORY_PANEL_WIDTH_KEY));
@@ -100,7 +128,7 @@ export function App() {
     source: VideoSource,
     settings: HistorySettings = currentSettings(),
     autoPlay = false,
-    options: { detectProjectionFromVideoSize?: boolean } = {}
+    options: { detectProjectionFromVideoSize?: boolean; seekTimeSeconds?: number; bookmarkId?: string; playAfterSeek?: boolean } = {}
   ) => {
     if (objectUrlRef.current && objectUrlRef.current !== source.url) {
       URL.revokeObjectURL(objectUrlRef.current);
@@ -115,9 +143,13 @@ export function App() {
     const sourceId = getSourceId(source);
     setCurrentSourceId(sourceId);
     pendingProjectionDetectionRef.current = options.detectProjectionFromVideoSize ? { sourceId } : null;
+    pendingSeekRef.current = typeof options.seekTimeSeconds === "number" ? Math.max(options.seekTimeSeconds, 0) : null;
+    pendingPlayAfterSeekRef.current = Boolean(options.playAfterSeek);
+    currentBookmarkOpenRef.current = options.bookmarkId ?? null;
     setCurrentPath(source.path ?? null);
+    setCurrentSourceName(source.name);
     setFileName(getFileAlias(aliases, { id: sourceId, ...source })?.displayName ?? source.name);
-    setCurrentTime(0);
+    setCurrentTime(pendingSeekRef.current ?? 0);
     setIsPlaying(false);
     pendingAutoPlayRef.current = autoPlay;
 
@@ -280,6 +312,9 @@ export function App() {
       }));
       setHistoryItems(markHistoryMissing(currentPath || currentSourceId));
     }
+    if (currentBookmarkOpenRef.current) {
+      setBookmarks(markBookmarkMissing(currentBookmarkOpenRef.current));
+    }
   };
 
   const renameHistoryItem = (item: HistoryItem, displayName: string) => {
@@ -312,6 +347,140 @@ export function App() {
 
     setHistoryItems(clearHistory());
     setHistoryDiagnostics({});
+  };
+
+  const addCurrentBookmark = () => {
+    const video = videoRef.current;
+    if (!video || !videoUrl || !currentSourceId) {
+      return;
+    }
+
+    const bookmarkTime = Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
+    const displayName = `${formatBookmarkTime(bookmarkTime)} のブックマーク`;
+    const source = {
+      path: currentPath ?? undefined,
+      url: videoUrl,
+      name: currentSourceName
+    };
+    const { items, bookmark } = addBookmark({
+      ...source,
+      timeSeconds: bookmarkTime,
+      displayName,
+      ...currentSettings()
+    });
+    setBookmarks(items);
+    setActiveSidePanelTab("bookmarks");
+
+    void createVideoThumbnail(videoUrl, {
+      projectionMode,
+      previewEye,
+      seekSeconds: bookmarkTime
+    })
+      .then((thumbnailDataUrl) => setBookmarks(attachBookmarkThumbnail(bookmark.id, thumbnailDataUrl)))
+      .catch(() => undefined);
+  };
+
+  const openBookmarkItem = async (item: BookmarkItem) => {
+    const settings = {
+      projectionMode: item.projectionMode,
+      previewEye: item.previewEye,
+      flipX: item.flipX,
+      flipY: item.flipY
+    };
+
+    if (item.sourceId === currentSourceId && videoRef.current) {
+      const video = videoRef.current;
+      const targetTime = Number.isFinite(video.duration) && video.duration > 0
+        ? Math.min(Math.max(item.timeSeconds, 0), Math.max(video.duration - 0.1, 0))
+        : Math.max(item.timeSeconds, 0);
+      pendingAutoPlayRef.current = false;
+      pendingSeekRef.current = null;
+      pendingPlayAfterSeekRef.current = false;
+      currentBookmarkOpenRef.current = item.id;
+      setProjectionMode(settings.projectionMode);
+      setPreviewEye(settings.previewEye);
+      setFlipX(settings.flipX);
+      setFlipY(settings.flipY);
+      video.currentTime = targetTime;
+      setCurrentTime(targetTime);
+      void video.play().catch(() => undefined);
+      return;
+    }
+
+    const candidates = [item.path, item.url, item.sourceId].filter((value): value is string => Boolean(value && !value.startsWith("blob:")));
+
+    for (const candidate of candidates) {
+      try {
+        const result = await window.vr180?.openVideoPath(candidate);
+        if (result?.url) {
+          openVideoSource(
+            { ...result, remember: true },
+            settings,
+            false,
+            { seekTimeSeconds: item.timeSeconds, bookmarkId: item.id, playAfterSeek: true }
+          );
+          return;
+        }
+      } catch {
+        // Try the next recovery candidate.
+      }
+    }
+
+    if (window.vr180 && item.name) {
+      try {
+        const result = await window.vr180.recoverVideoByName(item.name);
+        if (result?.url) {
+          openVideoSource(
+            { ...result, remember: true },
+            settings,
+            false,
+            { seekTimeSeconds: item.timeSeconds, bookmarkId: item.id, playAfterSeek: true }
+          );
+          return;
+        }
+      } catch {
+        // Fall through to direct URL fallback.
+      }
+    }
+
+    if (!item.url.startsWith("blob:")) {
+      openVideoSource(
+        { path: item.path, url: item.url, name: item.name, remember: true },
+        settings,
+        false,
+        { seekTimeSeconds: item.timeSeconds, bookmarkId: item.id, playAfterSeek: true }
+      );
+      return;
+    }
+
+    setBookmarks(markBookmarkMissing(item.id));
+  };
+
+  const renameBookmarkItem = (item: BookmarkItem, displayName: string) => {
+    setBookmarks(updateBookmarkName(item.id, displayName));
+    setRenamingBookmarkItem(null);
+  };
+
+  const removeBookmarkItem = (item: BookmarkItem) => {
+    const confirmed = window.confirm(`ブックマークを削除しますか？\n${item.displayName}`);
+    if (!confirmed) {
+      return;
+    }
+
+    setBookmarks(deleteBookmark(item.id));
+  };
+
+  const removeAllBookmarkItems = () => {
+    if (bookmarks.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm("ブックマークをすべて削除しますか？");
+    if (!confirmed) {
+      return;
+    }
+
+    setBookmarks(clearBookmarks());
   };
 
   const exportAliasCsv = () => {
@@ -625,6 +794,20 @@ export function App() {
                 pendingAutoPlayRef.current = false;
                 void videoRef.current?.play().catch(() => undefined);
               }
+              const pendingSeek = pendingSeekRef.current;
+              if (video && pendingSeek !== null) {
+                pendingSeekRef.current = null;
+                const targetTime = Number.isFinite(video.duration) && video.duration > 0 ? Math.min(pendingSeek, Math.max(video.duration - 0.1, 0)) : pendingSeek;
+                video.currentTime = targetTime;
+                setCurrentTime(targetTime);
+                pendingAutoPlayRef.current = false;
+                if (pendingPlayAfterSeekRef.current) {
+                  pendingPlayAfterSeekRef.current = false;
+                  void video.play().catch(() => undefined);
+                } else {
+                  video.pause();
+                }
+              }
             }}
             onPlayStateChange={setIsPlaying}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
@@ -635,10 +818,12 @@ export function App() {
             duration={duration}
             flipX={flipX}
             flipY={flipY}
+            canAddBookmark={Boolean(videoUrl && currentSourceId)}
             isPlaying={isPlaying}
             previewEye={previewEye}
             volume={volume}
             onOpen={openVideo}
+            onAddBookmark={addCurrentBookmark}
             onPreviewEye={setPreviewEye}
             onResetView={() => setResetSignal((value) => value + 1)}
             onResetZoom={() => setZoomResetSignal((value) => value + 1)}
@@ -662,12 +847,19 @@ export function App() {
             />
             <HistoryPanel
               activeId={currentSourceId}
+              activeTab={activeSidePanelTab}
               aliases={aliases}
+              bookmarks={bookmarks}
               items={historyItems}
+              onTabChange={setActiveSidePanelTab}
               onOpen={(item) => void openHistoryItem(item)}
               onRequestRename={setRenamingHistoryItem}
               onDelete={removeHistoryItem}
               onClear={removeAllHistoryItems}
+              onOpenBookmark={(item) => void openBookmarkItem(item)}
+              onRequestBookmarkRename={setRenamingBookmarkItem}
+              onDeleteBookmark={removeBookmarkItem}
+              onClearBookmarks={removeAllBookmarkItems}
               onOpenAliasManager={() => setIsAliasManagerOpen(true)}
             />
           </>
@@ -688,6 +880,13 @@ export function App() {
           item={renamingHistoryItem}
           onClose={() => setRenamingHistoryItem(null)}
           onSave={(displayName) => renameHistoryItem(renamingHistoryItem, displayName)}
+        />
+      )}
+      {renamingBookmarkItem && (
+        <RenameBookmarkModal
+          item={renamingBookmarkItem}
+          onClose={() => setRenamingBookmarkItem(null)}
+          onSave={(displayName) => renameBookmarkItem(renamingBookmarkItem, displayName)}
         />
       )}
       {isDraggingVideo && (

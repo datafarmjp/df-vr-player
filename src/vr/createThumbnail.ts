@@ -3,6 +3,7 @@ import { PreviewEye, ProjectionMode } from "./projectionModes";
 type ThumbnailOptions = {
   projectionMode: ProjectionMode;
   previewEye: PreviewEye;
+  seekSeconds?: number;
 };
 
 const thumbnailSeekSeconds = 15;
@@ -21,8 +22,9 @@ export async function createVideoThumbnail(videoUrl: string, options: ThumbnailO
 
   try {
     await waitForEvent(video, "loadedmetadata");
+    const targetSeekSeconds = options.seekSeconds ?? thumbnailSeekSeconds;
     const seekTime = Number.isFinite(video.duration) && video.duration > 0
-      ? Math.min(thumbnailSeekSeconds, Math.max(video.duration - 0.1, 0))
+      ? Math.min(Math.max(targetSeekSeconds, 0), Math.max(video.duration - 0.1, 0))
       : 0;
     video.currentTime = seekTime;
     await waitForEvent(video, "seeked");

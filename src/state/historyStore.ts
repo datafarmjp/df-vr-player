@@ -2,7 +2,9 @@ import { PreviewEye, ProjectionMode } from "../vr/projectionModes";
 
 const HISTORY_KEY = "vr-smb-player:history";
 const ALIASES_KEY = "vr-smb-player:aliases";
+const BOOKMARKS_KEY = "vr-smb-player:bookmarks";
 export const HISTORY_LIMIT = 50;
+export const BOOKMARK_LIMIT_PER_VIDEO = 10;
 
 export type HistoryItem = {
   id: string;
@@ -10,6 +12,23 @@ export type HistoryItem = {
   url: string;
   name: string;
   lastOpenedAt: string;
+  projectionMode: ProjectionMode;
+  previewEye: PreviewEye;
+  flipX: boolean;
+  flipY: boolean;
+  thumbnailDataUrl?: string;
+  missing?: boolean;
+};
+
+export type BookmarkItem = {
+  id: string;
+  sourceId: string;
+  path?: string;
+  url: string;
+  name: string;
+  timeSeconds: number;
+  displayName: string;
+  createdAt: string;
   projectionMode: ProjectionMode;
   previewEye: PreviewEye;
   flipX: boolean;
@@ -39,6 +58,14 @@ export type HistoryUpsertInput = {
   path?: string;
   url: string;
   name: string;
+} & HistorySettings;
+
+export type BookmarkInput = {
+  path?: string;
+  url: string;
+  name: string;
+  timeSeconds: number;
+  displayName: string;
 } & HistorySettings;
 
 const normalizePath = (path: string) => normalizeIdentity(path);
@@ -179,6 +206,97 @@ export function deleteHistoryItem(id: string) {
 export function clearHistory() {
   saveHistory([]);
   return [];
+}
+
+function isBookmarkItem(value: unknown): value is BookmarkItem {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const item = value as Partial<BookmarkItem>;
+  return Boolean(item.id && item.sourceId && (item.path || item.url) && item.name && item.displayName && item.createdAt && typeof item.timeSeconds === "number");
+}
+
+export function loadBookmarks(): BookmarkItem[] {
+  try {
+    const raw = localStorage.getItem(BOOKMARKS_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isBookmarkItem);
+  } catch {
+    return [];
+  }
+}
+
+export function saveBookmarks(items: BookmarkItem[]) {
+  try {
+    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(items));
+  } catch {
+    const withoutThumbnails = items.map(({ thumbnailDataUrl: _thumbnailDataUrl, ...item }) => item);
+    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(withoutThumbnails));
+  }
+}
+
+export function addBookmark(input: BookmarkInput) {
+  const sourceId = createHistoryId(input);
+  const createdAt = new Date().toISOString();
+  const bookmark: BookmarkItem = {
+    id: `${sourceId}#${createdAt}#${Math.round(input.timeSeconds * 1000)}`,
+    sourceId,
+    path: input.path,
+    url: input.url,
+    name: input.name,
+    timeSeconds: input.timeSeconds,
+    displayName: input.displayName,
+    createdAt,
+    projectionMode: input.projectionMode,
+    previewEye: input.previewEye,
+    flipX: input.flipX,
+    flipY: input.flipY,
+    missing: false
+  };
+  const items = loadBookmarks();
+  const sameSource = [bookmark, ...items.filter((item) => item.sourceId === sourceId)].slice(0, BOOKMARK_LIMIT_PER_VIDEO);
+  const next = [...sameSource, ...items.filter((item) => item.sourceId !== sourceId)].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  saveBookmarks(next);
+  return { items: next, bookmark };
+}
+
+export function attachBookmarkThumbnail(id: string, thumbnailDataUrl: string) {
+  const next = loadBookmarks().map((item) => (item.id === id ? { ...item, thumbnailDataUrl } : item));
+  saveBookmarks(next);
+  return next;
+}
+
+export function updateBookmarkName(id: string, displayName: string) {
+  const trimmed = displayName.trim();
+  const next = loadBookmarks().map((item) => (item.id === id ? { ...item, displayName: trimmed || item.displayName } : item));
+  saveBookmarks(next);
+  return next;
+}
+
+export function deleteBookmark(id: string) {
+  const next = loadBookmarks().filter((item) => item.id !== id);
+  saveBookmarks(next);
+  return next;
+}
+
+export function clearBookmarks() {
+  saveBookmarks([]);
+  return [];
+}
+
+export function markBookmarkMissing(id: string) {
+  const next = loadBookmarks().map((item) => (item.id === id ? { ...item, missing: true } : item));
+  saveBookmarks(next);
+  return next;
 }
 
 export function loadAliases(): Record<string, FileAlias> {

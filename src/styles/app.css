@@ -214,7 +214,7 @@ button.is-active {
 
 .control-bar {
   display: grid;
-  grid-template-columns: 40px 40px auto minmax(140px, 1fr) auto minmax(72px, 120px) auto 40px 40px 40px 40px;
+  grid-template-columns: 40px 40px 40px auto minmax(140px, 1fr) auto minmax(72px, 120px) auto 40px 40px 40px 40px;
   align-items: center;
   gap: 8px;
   min-height: 72px;
@@ -238,6 +238,11 @@ button.is-active {
 
 .icon-button svg {
   display: block;
+}
+
+.icon-button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .icon-button[data-tooltip]::after,
@@ -346,19 +351,45 @@ button.is-active {
 }
 
 .history-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 8px;
   min-height: 56px;
-  padding: 14px;
+  padding: 10px;
   border-bottom: 1px solid #292d35;
+}
+
+.panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(54px, 1fr));
+  gap: 3px;
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid #343842;
+  border-radius: 7px;
+  background: #0e1013;
+}
+
+.panel-tabs button {
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 0;
+  color: #b6bdca;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.panel-tabs button.is-selected {
+  color: #15171c;
+  background: #e7edf8;
 }
 
 .history-header-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .history-header-actions button {
@@ -768,7 +799,7 @@ button.is-active {
   }
 
   .control-bar {
-    grid-template-columns: 36px 36px auto minmax(90px, 1fr) auto auto 36px 36px 36px 36px;
+    grid-template-columns: 36px 36px 36px auto minmax(90px, 1fr) auto auto 36px 36px 36px 36px;
     gap: 6px;
     padding: 12px;
   }
