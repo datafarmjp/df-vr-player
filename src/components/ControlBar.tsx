@@ -7,6 +7,8 @@ import {
   Pause,
   Play,
   RotateCcw,
+  SkipBack,
+  SkipForward,
   ZoomOut
 } from "lucide-react";
 import { PreviewEye } from "../vr/projectionModes";
@@ -20,8 +22,12 @@ type ControlBarProps = {
   flipX: boolean;
   flipY: boolean;
   canAddBookmark: boolean;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
   onOpen: () => void;
   onAddBookmark: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onVolume: (volume: number) => void;
@@ -52,8 +58,12 @@ export function ControlBar({
   flipX,
   flipY,
   canAddBookmark,
+  canGoPrevious,
+  canGoNext,
   onOpen,
   onAddBookmark,
+  onPrevious,
+  onNext,
   onTogglePlay,
   onSeek,
   onVolume,
@@ -82,6 +92,12 @@ export function ControlBar({
         onClick={onAddBookmark}
       >
         <BookmarkPlus size={20} strokeWidth={2.2} />
+      </button>
+      <button aria-label="前の動画" className="icon-button" data-tooltip="前の動画" type="button" disabled={!canGoPrevious} onClick={onPrevious}>
+        <SkipBack size={20} strokeWidth={2.2} />
+      </button>
+      <button aria-label="次の動画" className="icon-button" data-tooltip="次の動画" type="button" disabled={!canGoNext} onClick={onNext}>
+        <SkipForward size={20} strokeWidth={2.2} />
       </button>
       <span className="time">{formatTime(currentTime)}</span>
       <input

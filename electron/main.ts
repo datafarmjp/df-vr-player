@@ -72,6 +72,65 @@ app.whenReady().then(() => {
     return createVideoResult(result.filePaths[0]);
   });
 
+  ipcMain.handle("dialog:openPlaylistVideos", async () => {
+    const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const dialogOptions: OpenDialogOptions = {
+      title: "プレイリストに動画を追加",
+      properties: ["openFile", "multiSelections"],
+      filters: [
+        { name: "Video Files", extensions: ["mp4", "mov", "m4v", "webm"] },
+        { name: "All Files", extensions: ["*"] }
+      ]
+    };
+    const result = parentWindow
+      ? await dialog.showOpenDialog(parentWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions);
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return Promise.all(
+      result.filePaths
+        .filter((filePath) => isVideoFileName(filePath))
+        .sort((a, b) => path.basename(a).localeCompare(path.basename(b), "ja", { numeric: true }))
+        .map(createVideoResult)
+    );
+  });
+
+  ipcMain.handle("dialog:openVideoFolder", async () => {
+    const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const dialogOptions: OpenDialogOptions = {
+      title: "動画フォルダを追加",
+      properties: ["openDirectory"]
+    };
+    const result = parentWindow
+      ? await dialog.showOpenDialog(parentWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions);
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const folderPath = result.filePaths[0];
+    const entries = await fs.readdir(folderPath, { withFileTypes: true }).catch(() => []);
+    const videos = entries
+      .filter((entry) => entry.isFile() && isVideoFileName(entry.name))
+      .map((entry) => path.join(folderPath, entry.name))
+      .sort((a, b) => path.basename(a).localeCompare(path.basename(b), "ja", { numeric: true }))
+      .map((filePath) => ({
+        path: filePath,
+        url: pathToFileURL(filePath).toString(),
+        name: path.basename(filePath)
+      }));
+
+    return {
+      folderPath,
+      name: path.basename(folderPath),
+      videos
+    };
+  });
+
   ipcMain.handle("video:openPath", async (_event, filePath: string) => {
     if (!filePath) {
       return null;
@@ -136,6 +195,10 @@ async function canAccess(filePath: string) {
   } catch {
     return false;
   }
+}
+
+function isVideoFileName(fileName: string) {
+  return [".mp4", ".mov", ".m4v", ".webm"].some((extension) => fileName.toLowerCase().endsWith(extension));
 }
 
 async function findFileInVolumes(fileName: string) {

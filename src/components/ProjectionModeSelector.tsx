@@ -15,6 +15,16 @@ const modes: ProjectionMode[] = [
   "flat"
 ];
 
+const shortLabels: Record<ProjectionMode, string> = {
+  "vr180-sbs": "180 LR",
+  "vr180-tb": "180 TB",
+  "vr180-2d": "180 2D",
+  "vr360-sbs": "360 LR",
+  "vr360-tb": "360 TB",
+  "vr360-2d": "360 2D",
+  flat: "2D"
+};
+
 export function ProjectionModeSelector({ value, onChange }: ProjectionModeSelectorProps) {
   return (
     <div className="segmented-control" aria-label="投影モード">
@@ -22,10 +32,13 @@ export function ProjectionModeSelector({ value, onChange }: ProjectionModeSelect
         <button
           key={mode}
           className={value === mode ? "is-selected" : ""}
+          aria-label={projectionModeLabels[mode]}
+          data-tooltip={projectionModeLabels[mode]}
+          title={projectionModeLabels[mode]}
           type="button"
           onClick={() => onChange(mode)}
         >
-          {projectionModeLabels[mode]}
+          {shortLabels[mode]}
         </button>
       ))}
     </div>

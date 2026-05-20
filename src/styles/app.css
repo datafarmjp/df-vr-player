@@ -55,7 +55,7 @@ button.is-active {
 
 .app-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6px var(--history-panel-width, 260px);
+  grid-template-columns: minmax(0, 1fr) 6px var(--history-panel-width, 340px);
   height: 100vh;
   min-height: 0;
 }
@@ -111,6 +111,7 @@ button.is-active {
 }
 
 .top-icon-button {
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 38px;
@@ -123,6 +124,35 @@ button.is-active {
   display: block;
 }
 
+.top-icon-button[data-tooltip]::after {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  padding: 5px 8px;
+  border: 1px solid #3a3d45;
+  border-radius: 5px;
+  color: #f4f5f7;
+  background: #0e1013;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 36%);
+  content: attr(data-tooltip);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: nowrap;
+}
+
+.top-icon-button[data-tooltip]:hover::after,
+.top-icon-button[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .eyebrow {
   margin: 0;
   color: #9ca4b3;
@@ -130,8 +160,9 @@ button.is-active {
 }
 
 .segmented-control {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(7, minmax(72px, 1fr));
+  grid-template-columns: repeat(7, minmax(56px, 1fr));
   gap: 4px;
   padding: 4px;
   border: 1px solid #343842;
@@ -140,10 +171,13 @@ button.is-active {
 }
 
 .segmented-control button {
+  position: relative;
   min-height: 32px;
+  padding: 0 8px;
   border: 0;
   background: transparent;
   color: #b6bdca;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -227,7 +261,7 @@ button.is-active {
 
 .control-bar {
   display: grid;
-  grid-template-columns: 40px 40px 40px auto minmax(140px, 1fr) auto minmax(72px, 120px) auto 40px 40px 40px 40px;
+  grid-template-columns: repeat(5, 40px) auto minmax(140px, 1fr) auto minmax(72px, 120px) auto repeat(4, 40px);
   align-items: center;
   gap: 8px;
   min-height: 72px;
@@ -259,7 +293,10 @@ button.is-active {
 }
 
 .icon-button[data-tooltip]::after,
-.compact-segment button[data-tooltip]::after {
+.compact-segment button[data-tooltip]::after,
+.segmented-control button[data-tooltip]::after,
+.panel-tabs button[data-tooltip]::after,
+.history-actions button[data-tooltip]::after {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
@@ -285,9 +322,22 @@ button.is-active {
 .icon-button[data-tooltip]:hover::after,
 .icon-button[data-tooltip]:focus-visible::after,
 .compact-segment button[data-tooltip]:hover::after,
-.compact-segment button[data-tooltip]:focus-visible::after {
+.compact-segment button[data-tooltip]:focus-visible::after,
+.segmented-control button[data-tooltip]:hover::after,
+.segmented-control button[data-tooltip]:focus-visible::after,
+.panel-tabs button[data-tooltip]:hover::after,
+.panel-tabs button[data-tooltip]:focus-visible::after,
+.history-actions button[data-tooltip]:hover::after,
+.history-actions button[data-tooltip]:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.segmented-control button[data-tooltip]::after,
+.panel-tabs button[data-tooltip]::after {
+  top: calc(100% + 8px);
+  bottom: auto;
+  transform: translate(-50%, -4px);
 }
 
 .compact-segment {
@@ -373,7 +423,7 @@ button.is-active {
 
 .panel-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(54px, 1fr));
+  grid-template-columns: repeat(3, minmax(52px, 1fr));
   gap: 3px;
   min-width: 0;
   padding: 3px;
@@ -383,13 +433,20 @@ button.is-active {
 }
 
 .panel-tabs button {
+  position: relative;
+  display: grid;
+  place-items: center;
   min-height: 28px;
-  padding: 3px 8px;
+  padding: 3px;
   border: 0;
   color: #b6bdca;
   background: transparent;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.panel-tabs button svg {
+  display: block;
 }
 
 .panel-tabs button.is-selected {
@@ -403,6 +460,7 @@ button.is-active {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .history-header-actions button {
@@ -413,6 +471,40 @@ button.is-active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.playlist-header-actions {
+  display: grid;
+  grid-template-columns: auto minmax(128px, 1fr) 32px auto auto;
+  width: 100%;
+}
+
+.playlist-header-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.playlist-header-actions label {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: #9ca4b3;
+  font-size: 12px;
+}
+
+.playlist-header-actions select {
+  min-width: 96px;
+  width: 100%;
+  height: 28px;
+  border: 1px solid #343842;
+  border-radius: 6px;
+  color: #d8dee9;
+  background: #20232b;
+  font: inherit;
 }
 
 .history-header-actions button:disabled {
@@ -459,7 +551,7 @@ button.is-active {
 
 .history-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 32px;
   gap: 10px;
   align-items: center;
   min-height: 58px;
@@ -471,8 +563,22 @@ button.is-active {
   text-align: left;
 }
 
+.history-item.is-playlist {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .history-item:hover {
   background: #222631;
+}
+
+.history-item[draggable="true"] {
+  cursor: grab;
+}
+
+.history-item.is-dragging {
+  border-color: #7bcfb8;
+  background: #1d302d;
+  opacity: 0.72;
 }
 
 .history-item.is-current {
@@ -552,14 +658,24 @@ button.is-active {
 .history-actions {
   display: grid;
   gap: 5px;
-  justify-items: stretch;
+  justify-items: center;
 }
 
 .history-actions button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 26px;
   min-height: 26px;
-  padding: 3px 7px;
+  padding: 0;
   font-size: 11px;
   line-height: 1;
+}
+
+.history-actions button svg {
+  display: block;
 }
 
 .history-item.is-missing .history-subline {
@@ -868,11 +984,11 @@ button.is-active {
   }
 
   .segmented-control {
-    grid-template-columns: repeat(4, minmax(72px, 1fr));
+    grid-template-columns: repeat(4, minmax(56px, 1fr));
   }
 
   .control-bar {
-    grid-template-columns: 36px 36px 36px auto minmax(90px, 1fr) auto auto 36px 36px 36px 36px;
+    grid-template-columns: repeat(5, 36px) auto minmax(90px, 1fr) auto auto repeat(4, 36px);
     gap: 6px;
     padding: 12px;
   }

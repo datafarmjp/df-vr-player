@@ -17,6 +17,7 @@ type PlayerViewProps = {
   onTimeUpdate: () => void;
   onPlayStateChange: (isPlaying: boolean) => void;
   onVideoError: () => void;
+  onEnded: () => void;
 };
 
 export function PlayerView({
@@ -31,7 +32,8 @@ export function PlayerView({
   onLoadedMetadata,
   onTimeUpdate,
   onPlayStateChange,
-  onVideoError
+  onVideoError,
+  onEnded
 }: PlayerViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<VrScene | null>(null);
@@ -117,6 +119,7 @@ export function PlayerView({
         onPlay={() => onPlayStateChange(true)}
         onTimeUpdate={onTimeUpdate}
         onError={onVideoError}
+        onEnded={onEnded}
       />
     </main>
   );

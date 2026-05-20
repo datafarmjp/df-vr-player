@@ -3,8 +3,12 @@ import { PreviewEye, ProjectionMode } from "../vr/projectionModes";
 const HISTORY_KEY = "vr-smb-player:history";
 const ALIASES_KEY = "vr-smb-player:aliases";
 const BOOKMARKS_KEY = "vr-smb-player:bookmarks";
+const PLAYLIST_KEY = "vr-smb-player:playlist";
 export const HISTORY_LIMIT = 50;
 export const BOOKMARK_LIMIT_PER_VIDEO = 10;
+
+export type PlaylistSortMode = "manual" | "name" | "addedAt" | "duration";
+export type PlaylistSortDirection = "asc" | "desc";
 
 export type HistoryItem = {
   id: string;
@@ -33,6 +37,19 @@ export type BookmarkItem = {
   previewEye: PreviewEye;
   flipX: boolean;
   flipY: boolean;
+  thumbnailDataUrl?: string;
+  missing?: boolean;
+};
+
+export type PlaylistItem = {
+  id: string;
+  path?: string;
+  url: string;
+  name: string;
+  folderPath: string;
+  addedAt: string;
+  manualOrder: number;
+  durationSeconds?: number;
   thumbnailDataUrl?: string;
   missing?: boolean;
 };
@@ -67,6 +84,13 @@ export type BookmarkInput = {
   timeSeconds: number;
   displayName: string;
 } & HistorySettings;
+
+export type PlaylistInput = {
+  path?: string;
+  url: string;
+  name: string;
+  folderPath: string;
+};
 
 const normalizePath = (path: string) => normalizeIdentity(path);
 
@@ -299,6 +323,157 @@ export function markBookmarkMissing(id: string) {
   return next;
 }
 
+function isPlaylistItem(value: unknown): value is PlaylistItem {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const item = value as Partial<PlaylistItem>;
+  return Boolean(item.id && (item.path || item.url) && item.name && item.folderPath && item.addedAt);
+}
+
+export function loadPlaylist(): PlaylistItem[] {
+  try {
+    const raw = localStorage.getItem(PLAYLIST_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const normalizedItems = parsed.filter(isPlaylistItem).map((item, index) => ({
+      ...item,
+      id: createHistoryId(item),
+      manualOrder: typeof item.manualOrder === "number" && Number.isFinite(item.manualOrder) ? item.manualOrder : index
+    }));
+    const next = dedupePlaylistItems(normalizedItems);
+    savePlaylist(next);
+    return next;
+  } catch {
+    return [];
+  }
+}
+
+export function savePlaylist(items: PlaylistItem[]) {
+  const dedupedItems = dedupePlaylistItems(items);
+  try {
+    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(dedupedItems));
+  } catch {
+    const withoutThumbnails = dedupedItems.map(({ thumbnailDataUrl: _thumbnailDataUrl, ...item }) => item);
+    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(withoutThumbnails));
+  }
+}
+
+export function addPlaylistItems(inputs: PlaylistInput[]) {
+  const existingItems = loadPlaylist();
+  const existingIds = new Set(existingItems.map((item) => item.id));
+  const addedAt = new Date().toISOString();
+  const startOrder = existingItems.reduce((maxOrder, item) => Math.max(maxOrder, item.manualOrder), -1) + 1;
+  const nextItems = inputs
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }))
+    .map((input, index) => ({
+      id: createHistoryId(input),
+      path: input.path,
+      url: input.url,
+      name: input.name,
+      folderPath: input.folderPath,
+      addedAt,
+      manualOrder: startOrder + index,
+      missing: false
+    }))
+    .filter((item) => !existingIds.has(item.id));
+  const next = [...existingItems, ...nextItems];
+  savePlaylist(next);
+  return next;
+}
+
+export function clearPlaylist() {
+  savePlaylist([]);
+  return [];
+}
+
+export function deletePlaylistItem(id: string) {
+  const normalizedId = normalizeIdentity(id);
+  const next = loadPlaylist().filter((item) => item.id !== normalizedId);
+  savePlaylist(next);
+  return next;
+}
+
+export function attachPlaylistThumbnail(id: string, thumbnailDataUrl: string) {
+  const normalizedId = normalizeIdentity(id);
+  const next = loadPlaylist().map((item) => (item.id === normalizedId ? { ...item, thumbnailDataUrl } : item));
+  savePlaylist(next);
+  return next;
+}
+
+export function markPlaylistMissing(id: string) {
+  const normalizedId = normalizeIdentity(id);
+  const next = loadPlaylist().map((item) => (item.id === normalizedId ? { ...item, missing: true } : item));
+  savePlaylist(next);
+  return next;
+}
+
+export function updatePlaylistDuration(id: string, durationSeconds: number) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return loadPlaylist();
+  }
+
+  const normalizedId = normalizeIdentity(id);
+  const next = loadPlaylist().map((item) => (item.id === normalizedId ? { ...item, durationSeconds, missing: false } : item));
+  savePlaylist(next);
+  return next;
+}
+
+export function reorderPlaylistItems(orderedIds: string[]) {
+  const orderById = new Map(orderedIds.map((id, index) => [normalizeIdentity(id), index]));
+  const next = loadPlaylist().map((item) => ({
+    ...item,
+    manualOrder: orderById.get(item.id) ?? item.manualOrder
+  }));
+  savePlaylist(next);
+  return next;
+}
+
+export function sortPlaylistItems(items: PlaylistItem[], sortMode: PlaylistSortMode, sortDirection: PlaylistSortDirection) {
+  return items.slice().sort((a, b) => {
+    const applyDirection = (value: number) => sortDirection === "desc" ? -value : value;
+
+    if (sortMode === "manual") {
+      const orderCompare = a.manualOrder - b.manualOrder;
+      return orderCompare === 0 ? applyDirection(a.name.localeCompare(b.name, "ja", { numeric: true })) : applyDirection(orderCompare);
+    }
+
+    if (sortMode === "addedAt") {
+      const dateCompare = a.addedAt.localeCompare(b.addedAt);
+      return dateCompare === 0 ? applyDirection(a.name.localeCompare(b.name, "ja", { numeric: true })) : applyDirection(dateCompare);
+    }
+
+    if (sortMode === "duration") {
+      const aHasDuration = typeof a.durationSeconds === "number" && Number.isFinite(a.durationSeconds);
+      const bHasDuration = typeof b.durationSeconds === "number" && Number.isFinite(b.durationSeconds);
+      if (!aHasDuration && !bHasDuration) {
+        return applyDirection(a.name.localeCompare(b.name, "ja", { numeric: true }));
+      }
+      if (!aHasDuration) {
+        return 1;
+      }
+      if (!bHasDuration) {
+        return -1;
+      }
+      const aDuration = a.durationSeconds ?? 0;
+      const bDuration = b.durationSeconds ?? 0;
+      const durationCompare = aDuration - bDuration;
+      return durationCompare === 0 ? applyDirection(a.name.localeCompare(b.name, "ja", { numeric: true })) : applyDirection(durationCompare);
+    }
+
+    return applyDirection(a.name.localeCompare(b.name, "ja", { numeric: true }));
+  });
+}
+
 export function loadAliases(): Record<string, FileAlias> {
   try {
     const raw = localStorage.getItem(ALIASES_KEY);
@@ -457,6 +632,20 @@ function hasMatchingHistoryKey(keys: string[], item: HistoryItem) {
 
   const hasStablePath = Boolean(item.path || item.url?.startsWith("file:"));
   return !hasStablePath && Boolean(item.name && keys.includes(normalizeIdentity(item.name)));
+}
+
+function dedupePlaylistItems(items: PlaylistItem[]) {
+  const seen = new Set<string>();
+  const next: PlaylistItem[] = [];
+  items.forEach((item) => {
+    const id = createHistoryId(item);
+    if (seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    next.push({ ...item, id, manualOrder: typeof item.manualOrder === "number" && Number.isFinite(item.manualOrder) ? item.manualOrder : next.length });
+  });
+  return next;
 }
 
 function dedupeHistoryItems(items: HistoryItem[]) {

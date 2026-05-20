@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Info, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { AboutModal } from "./components/AboutModal";
 import { AliasManagerModal } from "./components/AliasManagerModal";
 import { ControlBar } from "./components/ControlBar";
@@ -10,6 +10,8 @@ import { RenameAliasModal } from "./components/RenameAliasModal";
 import { RenameBookmarkModal } from "./components/RenameBookmarkModal";
 import {
   addBookmark,
+  addPlaylistItems,
+  attachPlaylistThumbnail,
   attachThumbnail,
   attachBookmarkThumbnail,
   BookmarkItem,
@@ -17,9 +19,11 @@ import {
   buildAliasCsv,
   clearBookmarks,
   clearHistory,
+  clearPlaylist,
   deleteBookmark,
   deleteAliasKeys,
   deleteHistoryItem,
+  deletePlaylistItem,
   AliasManagerRow,
   FileAlias,
   getFileAlias,
@@ -29,12 +33,20 @@ import {
   loadAliases,
   loadBookmarks,
   loadHistory,
+  loadPlaylist,
   markBookmarkMissing,
   markHistoryMissing,
+  markPlaylistMissing,
+  PlaylistItem,
+  PlaylistSortDirection,
+  PlaylistSortMode,
+  reorderPlaylistItems,
   setFileAliasForSource,
+  sortPlaylistItems,
   updateAliasKeys,
   updateBookmarkName,
   updateHistorySettings,
+  updatePlaylistDuration,
   upsertHistoryItem
 } from "./state/historyStore";
 import { SidePanelTab } from "./components/HistoryPanel";
@@ -55,8 +67,10 @@ const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
 const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
-const minHistoryPanelWidth = 220;
-const maxHistoryPanelWidth = 520;
+const PLAYLIST_SORT_KEY = "vr-smb-player:playlist-sort";
+const PLAYLIST_SORT_DIRECTION_KEY = "vr-smb-player:playlist-sort-direction";
+const minHistoryPanelWidth = 300;
+const maxHistoryPanelWidth = 620;
 
 const formatBookmarkTime = (value: number) => {
   const totalSeconds = Math.max(0, Math.floor(value));
@@ -73,6 +87,9 @@ const isVideoFile = (file: File) => {
   const lowerName = file.name.toLowerCase();
   return videoExtensions.some((extension) => lowerName.endsWith(extension));
 };
+
+const isPlaylistSortMode = (value: string | null): value is PlaylistSortMode => value === "manual" || value === "name" || value === "addedAt" || value === "duration";
+const isPlaylistSortDirection = (value: string | null): value is PlaylistSortDirection => value === "asc" || value === "desc";
 
 export function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -101,6 +118,15 @@ export function App() {
   const [zoomResetSignal, setZoomResetSignal] = useState(0);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(() => loadHistory());
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => loadBookmarks());
+  const [playlistItems, setPlaylistItems] = useState<PlaylistItem[]>(() => loadPlaylist());
+  const [playlistSortMode, setPlaylistSortMode] = useState<PlaylistSortMode>(() => {
+    const storedSortMode = localStorage.getItem(PLAYLIST_SORT_KEY);
+    return isPlaylistSortMode(storedSortMode) ? storedSortMode : "name";
+  });
+  const [playlistSortDirection, setPlaylistSortDirection] = useState<PlaylistSortDirection>(() => {
+    const storedSortDirection = localStorage.getItem(PLAYLIST_SORT_DIRECTION_KEY);
+    return isPlaylistSortDirection(storedSortDirection) ? storedSortDirection : "asc";
+  });
   const [aliases, setAliases] = useState<Record<string, FileAlias>>(() => loadAliases());
   const [historyDiagnostics, setHistoryDiagnostics] = useState<Record<string, string>>({});
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
@@ -112,8 +138,10 @@ export function App() {
   const [isHistoryVisible, setIsHistoryVisible] = useState(() => localStorage.getItem(HISTORY_PANEL_VISIBLE_KEY) !== "false");
   const [historyPanelWidth, setHistoryPanelWidth] = useState(() => {
     const storedWidth = Number(localStorage.getItem(HISTORY_PANEL_WIDTH_KEY));
-    return Number.isFinite(storedWidth) ? Math.min(Math.max(storedWidth, minHistoryPanelWidth), maxHistoryPanelWidth) : 260;
+    return Number.isFinite(storedWidth) ? Math.min(Math.max(storedWidth, minHistoryPanelWidth), maxHistoryPanelWidth) : 340;
   });
+  const sortedPlaylistItems = useMemo(() => sortPlaylistItems(playlistItems, playlistSortMode, playlistSortDirection), [playlistItems, playlistSortDirection, playlistSortMode]);
+  const currentPlaylistIndex = currentSourceId ? sortedPlaylistItems.findIndex((item) => item.id === currentSourceId) : -1;
 
   const currentSettings = (): HistorySettings => ({
     projectionMode,
@@ -230,6 +258,22 @@ export function App() {
     openNewVideoSource({ url, name: file.name, remember: false });
   };
 
+  const addPlaylistVideos = async () => {
+    if (!window.vr180?.openPlaylistVideos) {
+      window.alert("プレイリスト追加APIを読み込めませんでした。最新版アプリを起動し直してください。");
+      return;
+    }
+
+    const result = await window.vr180.openPlaylistVideos().catch(() => null);
+    if (!result || result.length === 0) {
+      return;
+    }
+
+    setPlaylistItems(addPlaylistItems(result.map((video) => ({ ...video, folderPath: video.path ? video.path.split("/").slice(0, -1).join("/") : "" }))));
+    setActiveSidePanelTab("playlist");
+    setIsHistoryVisible(true);
+  };
+
   const openHistoryItem = async (item: HistoryItem) => {
     const settings = {
       projectionMode: item.projectionMode,
@@ -316,10 +360,76 @@ export function App() {
         [currentSourceId]: message
       }));
       setHistoryItems(markHistoryMissing(currentPath || currentSourceId));
+      setPlaylistItems(markPlaylistMissing(currentSourceId));
     }
     if (currentBookmarkOpenRef.current) {
       setBookmarks(markBookmarkMissing(currentBookmarkOpenRef.current));
     }
+  };
+
+  const openPlaylistItem = async (item: PlaylistItem) => {
+    const candidates = [item.path, item.url, item.id].filter((value): value is string => Boolean(value && !value.startsWith("blob:")));
+
+    for (const candidate of candidates) {
+      try {
+        const result = await window.vr180?.openVideoPath(candidate);
+        if (result?.url) {
+          openNewVideoSource({ ...result, remember: true });
+          return;
+        }
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    if (!item.url.startsWith("blob:")) {
+      openNewVideoSource({ path: item.path, url: item.url, name: item.name, remember: true });
+      return;
+    }
+
+    setPlaylistItems(markPlaylistMissing(item.id));
+  };
+
+  const createPlaylistThumbnailForCurrentVideo = (sourceId: string, sourceUrl: string) => {
+    if (playlistItems.some((item) => item.id === sourceId && item.thumbnailDataUrl)) {
+      return;
+    }
+
+    const existingHistoryThumbnail = historyItems.find((item) => item.id === sourceId)?.thumbnailDataUrl;
+    if (existingHistoryThumbnail) {
+      setPlaylistItems(attachPlaylistThumbnail(sourceId, existingHistoryThumbnail));
+      return;
+    }
+
+    void createVideoThumbnail(sourceUrl, {
+      projectionMode,
+      previewEye
+    })
+      .then((thumbnailDataUrl) => setPlaylistItems(attachPlaylistThumbnail(sourceId, thumbnailDataUrl)))
+      .catch(() => undefined);
+  };
+
+  const openPlaylistByOffset = (offset: number) => {
+    if (sortedPlaylistItems.length === 0) {
+      return;
+    }
+
+    const currentIndex = currentSourceId ? sortedPlaylistItems.findIndex((item) => item.id === currentSourceId) : -1;
+    const fallbackIndex = offset > 0 ? 0 : sortedPlaylistItems.length - 1;
+    const nextIndex = currentIndex >= 0 ? currentIndex + offset : fallbackIndex;
+    if (nextIndex < 0 || nextIndex >= sortedPlaylistItems.length) {
+      return;
+    }
+
+    void openPlaylistItem(sortedPlaylistItems[nextIndex]);
+  };
+
+  const handleVideoEnded = () => {
+    if (currentPlaylistIndex < 0) {
+      return;
+    }
+
+    openPlaylistByOffset(1);
   };
 
   const renameHistoryItem = (item: HistoryItem, displayName: string) => {
@@ -486,6 +596,57 @@ export function App() {
     }
 
     setBookmarks(clearBookmarks());
+  };
+
+  const removeAllPlaylistItems = () => {
+    if (playlistItems.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm("プレイリストをすべて削除しますか？");
+    if (!confirmed) {
+      return;
+    }
+
+    setPlaylistItems(clearPlaylist());
+  };
+
+  const removePlaylistItem = (item: PlaylistItem) => {
+    const confirmed = window.confirm(`プレイリストから削除しますか？\n${getFileAlias(aliases, item)?.displayName ?? item.name}\n\n動画ファイル、履歴、別名、ブックマークは削除されません。`);
+    if (!confirmed) {
+      return;
+    }
+
+    setPlaylistItems(deletePlaylistItem(item.id));
+  };
+
+  const changePlaylistSortMode = (sortMode: PlaylistSortMode) => {
+    setPlaylistSortMode(sortMode);
+    localStorage.setItem(PLAYLIST_SORT_KEY, sortMode);
+  };
+
+  const changePlaylistSortDirection = (sortDirection: PlaylistSortDirection) => {
+    setPlaylistSortDirection(sortDirection);
+    localStorage.setItem(PLAYLIST_SORT_DIRECTION_KEY, sortDirection);
+  };
+
+  const reorderPlaylist = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) {
+      return;
+    }
+
+    const orderedIds = sortedPlaylistItems.map((item) => item.id);
+    const draggedIndex = orderedIds.indexOf(draggedId);
+    const targetIndex = orderedIds.indexOf(targetId);
+    if (draggedIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    orderedIds.splice(draggedIndex, 1);
+    orderedIds.splice(targetIndex, 0, draggedId);
+    setPlaylistItems(reorderPlaylistItems(orderedIds));
+    changePlaylistSortMode("manual");
+    changePlaylistSortDirection("asc");
   };
 
   const exportAliasCsv = () => {
@@ -754,8 +915,15 @@ export function App() {
               <button aria-label="情報" className="top-icon-button" type="button" title="情報" onClick={() => setIsAboutOpen(true)}>
                 <Info size={18} strokeWidth={2.2} />
               </button>
-              <button className={isHistoryVisible ? "is-active" : ""} type="button" onClick={() => setIsHistoryVisible((value) => !value)}>
-                履歴
+              <button
+                aria-label="サイドパネル"
+                className={`top-icon-button ${isHistoryVisible ? "is-active" : ""}`}
+                data-tooltip="サイドパネル"
+                title="サイドパネル"
+                type="button"
+                onClick={() => setIsHistoryVisible((value) => !value)}
+              >
+                {isHistoryVisible ? <PanelRightClose size={18} strokeWidth={2.2} /> : <PanelRightOpen size={18} strokeWidth={2.2} />}
               </button>
             </div>
           </header>
@@ -770,7 +938,14 @@ export function App() {
             projectionMode={projectionMode}
             onLoadedMetadata={() => {
               const video = videoRef.current;
-              setDuration(video?.duration ?? 0);
+              const nextDuration = video?.duration ?? 0;
+              setDuration(nextDuration);
+              if (currentSourceId && Number.isFinite(nextDuration) && nextDuration > 0) {
+                setPlaylistItems(updatePlaylistDuration(currentSourceId, nextDuration));
+              }
+              if (currentSourceId && videoUrl && playlistItems.some((item) => item.id === currentSourceId)) {
+                createPlaylistThumbnailForCurrentVideo(currentSourceId, videoUrl);
+              }
               const pendingDetection = pendingProjectionDetectionRef.current;
               if (video && pendingDetection && pendingDetection.sourceId === currentSourceId) {
                 pendingProjectionDetectionRef.current = null;
@@ -820,6 +995,7 @@ export function App() {
             onPlayStateChange={setIsPlaying}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
             onVideoError={markCurrentVideoError}
+            onEnded={handleVideoEnded}
           />
           <ControlBar
             currentTime={currentTime}
@@ -827,11 +1003,15 @@ export function App() {
             flipX={flipX}
             flipY={flipY}
             canAddBookmark={Boolean(videoUrl && currentSourceId)}
+            canGoPrevious={currentPlaylistIndex > 0}
+            canGoNext={sortedPlaylistItems.length > 0 && currentPlaylistIndex !== sortedPlaylistItems.length - 1}
             isPlaying={isPlaying}
             previewEye={previewEye}
             volume={volume}
             onOpen={openVideo}
             onAddBookmark={addCurrentBookmark}
+            onPrevious={() => openPlaylistByOffset(-1)}
+            onNext={() => openPlaylistByOffset(1)}
             onPreviewEye={setPreviewEye}
             onResetView={() => setResetSignal((value) => value + 1)}
             onResetZoom={() => setZoomResetSignal((value) => value + 1)}
@@ -859,6 +1039,9 @@ export function App() {
               aliases={aliases}
               bookmarks={bookmarks}
               items={historyItems}
+              playlistItems={sortedPlaylistItems}
+              playlistSortDirection={playlistSortDirection}
+              playlistSortMode={playlistSortMode}
               onTabChange={setActiveSidePanelTab}
               onOpen={(item) => void openHistoryItem(item)}
               onRequestRename={setRenamingHistoryItem}
@@ -868,6 +1051,13 @@ export function App() {
               onRequestBookmarkRename={setRenamingBookmarkItem}
               onDeleteBookmark={removeBookmarkItem}
               onClearBookmarks={removeAllBookmarkItems}
+              onOpenPlaylistItem={(item) => void openPlaylistItem(item)}
+              onDeletePlaylistItem={removePlaylistItem}
+              onAddPlaylistVideos={() => void addPlaylistVideos()}
+              onClearPlaylist={removeAllPlaylistItems}
+              onPlaylistReorder={reorderPlaylist}
+              onPlaylistSortDirection={changePlaylistSortDirection}
+              onPlaylistSortMode={changePlaylistSortMode}
               onOpenAliasManager={() => setIsAliasManagerOpen(true)}
             />
           </>
