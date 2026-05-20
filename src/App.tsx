@@ -62,7 +62,7 @@ type VideoSource = {
 };
 
 const APP_BUILD = "2026-05-18 auto-projection-1";
-const APP_VERSION = "0.1.3";
+const APP_VERSION = "0.1.5";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
@@ -135,6 +135,7 @@ export function App() {
   const [renamingHistoryItem, setRenamingHistoryItem] = useState<HistoryItem | null>(null);
   const [renamingBookmarkItem, setRenamingBookmarkItem] = useState<BookmarkItem | null>(null);
   const [activeSidePanelTab, setActiveSidePanelTab] = useState<SidePanelTab>("history");
+  const activeSidePanelTabRef = useRef<SidePanelTab>(activeSidePanelTab);
   const [isHistoryVisible, setIsHistoryVisible] = useState(() => localStorage.getItem(HISTORY_PANEL_VISIBLE_KEY) !== "false");
   const [historyPanelWidth, setHistoryPanelWidth] = useState(() => {
     const storedWidth = Number(localStorage.getItem(HISTORY_PANEL_WIDTH_KEY));
@@ -142,6 +143,8 @@ export function App() {
   });
   const sortedPlaylistItems = useMemo(() => sortPlaylistItems(playlistItems, playlistSortMode, playlistSortDirection), [playlistItems, playlistSortDirection, playlistSortMode]);
   const currentPlaylistIndex = currentSourceId ? sortedPlaylistItems.findIndex((item) => item.id === currentSourceId) : -1;
+  const canGoPrevious = currentPlaylistIndex > 0;
+  const canGoNext = sortedPlaylistItems.length > 0 && currentPlaylistIndex >= 0 && currentPlaylistIndex < sortedPlaylistItems.length - 1;
 
   const currentSettings = (): HistorySettings => ({
     projectionMode,
@@ -156,6 +159,11 @@ export function App() {
     flipX: true,
     flipY
   });
+
+  const changeSidePanelTab = (tab: SidePanelTab) => {
+    activeSidePanelTabRef.current = tab;
+    setActiveSidePanelTab(tab);
+  };
 
   const openVideoSource = (
     source: VideoSource,
@@ -270,7 +278,7 @@ export function App() {
     }
 
     setPlaylistItems(addPlaylistItems(result.map((video) => ({ ...video, folderPath: video.path ? video.path.split("/").slice(0, -1).join("/") : "" }))));
-    setActiveSidePanelTab("playlist");
+    changeSidePanelTab("playlist");
     setIsHistoryVisible(true);
   };
 
@@ -409,19 +417,26 @@ export function App() {
       .catch(() => undefined);
   };
 
-  const openPlaylistByOffset = (offset: number) => {
+  const openPlaylistByOffset = (offset: number, revealPanel = false) => {
     if (sortedPlaylistItems.length === 0) {
       return;
     }
 
     const currentIndex = currentSourceId ? sortedPlaylistItems.findIndex((item) => item.id === currentSourceId) : -1;
-    const fallbackIndex = offset > 0 ? 0 : sortedPlaylistItems.length - 1;
-    const nextIndex = currentIndex >= 0 ? currentIndex + offset : fallbackIndex;
+    const nextIndex = currentIndex >= 0 ? currentIndex + offset : -1;
     if (nextIndex < 0 || nextIndex >= sortedPlaylistItems.length) {
       return;
     }
 
+    if (revealPanel) {
+      changeSidePanelTab("playlist");
+      setIsHistoryVisible(true);
+    }
     void openPlaylistItem(sortedPlaylistItems[nextIndex]);
+  };
+
+  const openAdjacentVideo = (offset: number) => {
+    openPlaylistByOffset(offset, true);
   };
 
   const handleVideoEnded = () => {
@@ -484,7 +499,7 @@ export function App() {
       ...currentSettings()
     });
     setBookmarks(items);
-    setActiveSidePanelTab("bookmarks");
+    changeSidePanelTab("bookmarks");
 
     void createVideoThumbnail(videoUrl, {
       projectionMode,
@@ -1003,15 +1018,15 @@ export function App() {
             flipX={flipX}
             flipY={flipY}
             canAddBookmark={Boolean(videoUrl && currentSourceId)}
-            canGoPrevious={currentPlaylistIndex > 0}
-            canGoNext={sortedPlaylistItems.length > 0 && currentPlaylistIndex !== sortedPlaylistItems.length - 1}
+            canGoPrevious={canGoPrevious}
+            canGoNext={canGoNext}
             isPlaying={isPlaying}
             previewEye={previewEye}
             volume={volume}
             onOpen={openVideo}
             onAddBookmark={addCurrentBookmark}
-            onPrevious={() => openPlaylistByOffset(-1)}
-            onNext={() => openPlaylistByOffset(1)}
+            onPrevious={() => openAdjacentVideo(-1)}
+            onNext={() => openAdjacentVideo(1)}
             onPreviewEye={setPreviewEye}
             onResetView={() => setResetSignal((value) => value + 1)}
             onResetZoom={() => setZoomResetSignal((value) => value + 1)}
@@ -1042,7 +1057,7 @@ export function App() {
               playlistItems={sortedPlaylistItems}
               playlistSortDirection={playlistSortDirection}
               playlistSortMode={playlistSortMode}
-              onTabChange={setActiveSidePanelTab}
+              onTabChange={changeSidePanelTab}
               onOpen={(item) => void openHistoryItem(item)}
               onRequestRename={setRenamingHistoryItem}
               onDelete={removeHistoryItem}
