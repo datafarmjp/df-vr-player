@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined || !app.isPackaged;
 const supportUrl = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
+const releaseInfoUrl = "https://info.datafarm.jp/media/releases/DF_VRPlayer/latest.json";
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -150,6 +151,25 @@ app.whenReady().then(() => {
 
   ipcMain.handle("shell:openSupport", async () => {
     await shell.openExternal(supportUrl);
+  });
+
+  ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+    if (!url.startsWith("https://")) {
+      return;
+    }
+    await shell.openExternal(url);
+  });
+
+  ipcMain.handle("release:check", async () => {
+    const response = await fetch(releaseInfoUrl, {
+      headers: {
+        accept: "application/json"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Release check failed: ${response.status}`);
+    }
+    return response.json();
   });
 
   createWindow();

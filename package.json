@@ -1,6 +1,6 @@
 {
   "name": "df-vr-player",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "ローカル、外付けドライブ、NAS上のVR180/VR360動画を開けるMac用デスクトッププレイヤー。",
   "author": "株式会社データファーム",
   "private": true,
@@ -10,6 +10,8 @@
     "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on tcp:5173 dist-electron/main.js && electron .\"",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.electron.json && vite build",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "release:json": "node scripts/generate-release-json.mjs",
+    "release:sync": "bash scripts/sync-release-sftp.sh",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit"
   },

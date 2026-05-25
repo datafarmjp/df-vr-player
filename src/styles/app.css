@@ -168,22 +168,42 @@ button.is-active {
   border: 1px solid #343842;
   border-radius: 8px;
   background: #0e1013;
+  user-select: none;
 }
 
 .segmented-control button {
   position: relative;
+  display: grid;
+  place-items: center;
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 5px;
   border: 0;
   background: transparent;
   color: #b6bdca;
   font-size: 13px;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .segmented-control button.is-selected {
   background: #e7edf8;
   color: #15171c;
+}
+
+.projection-label {
+  display: block;
+  width: 64px;
+  height: 25px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.projection-label text {
+  fill: currentColor;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .player-shell {
@@ -261,7 +281,7 @@ button.is-active {
 
 .control-bar {
   display: grid;
-  grid-template-columns: repeat(5, 40px) auto minmax(140px, 1fr) auto minmax(72px, 120px) auto repeat(4, 40px);
+  grid-template-columns: repeat(5, 40px) auto minmax(120px, 1fr) auto minmax(68px, 110px) 52px auto repeat(4, 40px);
   align-items: center;
   gap: 8px;
   min-height: 72px;
@@ -285,6 +305,48 @@ button.is-active {
 
 .icon-button svg {
   display: block;
+}
+
+.rate-menu {
+  position: relative;
+  width: 52px;
+}
+
+.rate-button {
+  width: 52px;
+  min-width: 52px;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.rate-options {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 50;
+  display: grid;
+  gap: 4px;
+  width: 78px;
+  padding: 6px;
+  border: 1px solid #343842;
+  border-radius: 7px;
+  background: #0e1013;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 42%);
+  transform: translateX(-50%);
+}
+
+.rate-options button {
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: #d8dee9;
+  font-size: 12px;
+}
+
+.rate-options button.is-selected {
+  background: #d7f3e7;
+  color: #13241d;
 }
 
 .icon-button:disabled {
@@ -475,7 +537,7 @@ button.is-active {
 
 .playlist-header-actions {
   display: grid;
-  grid-template-columns: auto minmax(128px, 1fr) 32px auto auto;
+  grid-template-columns: auto 32px 32px minmax(128px, 1fr) 32px auto auto;
   width: 100%;
 }
 
@@ -745,6 +807,46 @@ button.is-active {
   border-radius: 8px;
   background: #15171c;
   box-shadow: 0 24px 70px rgb(0 0 0 / 45%);
+}
+
+.update-modal {
+  display: grid;
+  gap: 14px;
+  width: min(520px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid #3c4658;
+  border-radius: 8px;
+  background: #15171c;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 45%);
+  padding: 18px;
+}
+
+.update-modal h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.update-modal ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #cfd5e1;
+  line-height: 1.5;
+}
+
+.update-modal li + li {
+  margin-top: 5px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-actions button {
+  min-height: 32px;
+  padding: 5px 12px;
 }
 
 .about-modal-header {

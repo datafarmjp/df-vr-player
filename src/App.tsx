@@ -17,6 +17,7 @@ import {
   BookmarkItem,
   buildAliasManagerRows,
   buildAliasCsv,
+  buildPlaylistCsv,
   clearBookmarks,
   clearHistory,
   clearPlaylist,
@@ -30,6 +31,7 @@ import {
   getSourceId,
   HistoryItem,
   HistorySettings,
+  importPlaylistCsv,
   loadAliases,
   loadBookmarks,
   loadHistory,
@@ -47,6 +49,7 @@ import {
   updateBookmarkName,
   updateHistorySettings,
   updatePlaylistDuration,
+  updatePlaylistSettings,
   upsertHistoryItem
 } from "./state/historyStore";
 import { SidePanelTab } from "./components/HistoryPanel";
@@ -62,15 +65,32 @@ type VideoSource = {
 };
 
 const APP_BUILD = "2026-05-18 auto-projection-1";
-const APP_VERSION = "0.1.5";
+const APP_VERSION = "0.1.6";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
 const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
 const PLAYLIST_SORT_KEY = "vr-smb-player:playlist-sort";
 const PLAYLIST_SORT_DIRECTION_KEY = "vr-smb-player:playlist-sort-direction";
+const PLAYBACK_RATE_KEY = "vr-smb-player:playback-rate";
+const DISMISSED_RELEASE_TAG_KEY = "vr-smb-player:dismissed-release-tag";
+const LATEST_RELEASE_URL = "https://info.datafarm.jp/media/releases/DF_VRPlayer/latest.json";
 const minHistoryPanelWidth = 300;
 const maxHistoryPanelWidth = 620;
+const playbackRates = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+type ReleaseInfo = {
+  product: string;
+  display_name: string;
+  version: string;
+  tag: string;
+  date: string;
+  title: string;
+  github_release_url: string;
+  download_url: string;
+  changes: string[];
+  body_markdown: string;
+};
 
 const formatBookmarkTime = (value: number) => {
   const totalSeconds = Math.max(0, Math.floor(value));
@@ -91,9 +111,39 @@ const isVideoFile = (file: File) => {
 const isPlaylistSortMode = (value: string | null): value is PlaylistSortMode => value === "manual" || value === "name" || value === "addedAt" || value === "duration";
 const isPlaylistSortDirection = (value: string | null): value is PlaylistSortDirection => value === "asc" || value === "desc";
 
+const compareVersions = (a: string, b: string) => {
+  const aParts = a.split(".").map((part) => Number(part));
+  const bParts = b.split(".").map((part) => Number(part));
+  const length = Math.max(aParts.length, bParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const aValue = Number.isFinite(aParts[index]) ? aParts[index] : 0;
+    const bValue = Number.isFinite(bParts[index]) ? bParts[index] : 0;
+    if (aValue !== bValue) {
+      return aValue - bValue;
+    }
+  }
+  return 0;
+};
+
+const isReleaseInfo = (value: unknown): value is ReleaseInfo => {
+  const release = value as Partial<ReleaseInfo>;
+  return Boolean(
+    release &&
+      typeof release === "object" &&
+      release.product === "DF_VRPlayer" &&
+      typeof release.version === "string" &&
+      typeof release.tag === "string" &&
+      typeof release.title === "string" &&
+      typeof release.github_release_url === "string" &&
+      typeof release.download_url === "string" &&
+      Array.isArray(release.changes)
+  );
+};
+
 export function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const playlistCsvInputRef = useRef<HTMLInputElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const pendingAutoPlayRef = useRef(false);
   const pendingSeekRef = useRef<number | null>(null);
@@ -114,6 +164,10 @@ export function App() {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.8);
+  const [playbackRate, setPlaybackRate] = useState(() => {
+    const storedRate = Number(localStorage.getItem(PLAYBACK_RATE_KEY));
+    return playbackRates.includes(storedRate) ? storedRate : 1;
+  });
   const [resetSignal, setResetSignal] = useState(0);
   const [zoomResetSignal, setZoomResetSignal] = useState(0);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(() => loadHistory());
@@ -134,6 +188,7 @@ export function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [renamingHistoryItem, setRenamingHistoryItem] = useState<HistoryItem | null>(null);
   const [renamingBookmarkItem, setRenamingBookmarkItem] = useState<BookmarkItem | null>(null);
+  const [availableRelease, setAvailableRelease] = useState<ReleaseInfo | null>(null);
   const [activeSidePanelTab, setActiveSidePanelTab] = useState<SidePanelTab>("history");
   const activeSidePanelTabRef = useRef<SidePanelTab>(activeSidePanelTab);
   const [isHistoryVisible, setIsHistoryVisible] = useState(() => localStorage.getItem(HISTORY_PANEL_VISIBLE_KEY) !== "false");
@@ -163,6 +218,15 @@ export function App() {
   const changeSidePanelTab = (tab: SidePanelTab) => {
     activeSidePanelTabRef.current = tab;
     setActiveSidePanelTab(tab);
+  };
+
+  const openExternalUrl = (url: string) => {
+    const encodedUrl = encodeURI(url);
+    if (window.vr180?.openExternal) {
+      void window.vr180.openExternal(encodedUrl);
+      return;
+    }
+    window.open(encodedUrl, "_blank", "noopener,noreferrer");
   };
 
   const openVideoSource = (
@@ -377,12 +441,27 @@ export function App() {
 
   const openPlaylistItem = async (item: PlaylistItem) => {
     const candidates = [item.path, item.url, item.id].filter((value): value is string => Boolean(value && !value.startsWith("blob:")));
+    const playlistSettings = item.projectionMode && item.previewEye && typeof item.flipX === "boolean" && typeof item.flipY === "boolean"
+      ? {
+          projectionMode: item.projectionMode,
+          previewEye: item.previewEye,
+          flipX: item.flipX,
+          flipY: item.flipY
+        }
+      : null;
+    const openPlaylistSource = (source: VideoSource) => {
+      if (playlistSettings) {
+        openVideoSource(source, playlistSettings, true);
+        return;
+      }
+      openNewVideoSource(source);
+    };
 
     for (const candidate of candidates) {
       try {
         const result = await window.vr180?.openVideoPath(candidate);
         if (result?.url) {
-          openNewVideoSource({ ...result, remember: true });
+          openPlaylistSource({ ...result, remember: true });
           return;
         }
       } catch {
@@ -391,7 +470,7 @@ export function App() {
     }
 
     if (!item.url.startsWith("blob:")) {
-      openNewVideoSource({ path: item.path, url: item.url, name: item.name, remember: true });
+      openPlaylistSource({ path: item.path, url: item.url, name: item.name, remember: true });
       return;
     }
 
@@ -677,6 +756,42 @@ export function App() {
     URL.revokeObjectURL(url);
   };
 
+  const exportPlaylistCsv = () => {
+    const csv = buildPlaylistCsv(playlistItems, historyItems, aliases);
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `df-vr-player-playlist-${APP_VERSION}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importPlaylistCsvFile = async (file: File | undefined) => {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const result = importPlaylistCsv(await file.text());
+      setPlaylistItems(result.items);
+      setAliases(result.aliases);
+      changePlaylistSortMode("manual");
+      changePlaylistSortDirection("asc");
+      changeSidePanelTab("playlist");
+      setIsHistoryVisible(true);
+      window.alert(`プレイリストCSVを読み込みました。\n追加: ${result.addedCount}件\nスキップ: ${result.skippedCount}件`);
+    } catch (error) {
+      window.alert(`プレイリストCSVを読み込めませんでした。\n${String(error)}`);
+    } finally {
+      if (playlistCsvInputRef.current) {
+        playlistCsvInputRef.current.value = "";
+      }
+    }
+  };
+
   const renameAliasRow = (row: AliasManagerRow, displayName: string) => {
     const nextAliases = updateAliasKeys(row.keys, displayName);
     setAliases(nextAliases);
@@ -802,6 +917,13 @@ export function App() {
   }, [videoUrl, volume]);
 
   useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackRate;
+    }
+    localStorage.setItem(PLAYBACK_RATE_KEY, String(playbackRate));
+  }, [playbackRate, videoUrl]);
+
+  useEffect(() => {
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
@@ -822,6 +944,16 @@ export function App() {
         flipY
       })
     );
+    if (currentSourceId && playlistItems.some((item) => item.id === currentSourceId)) {
+      setPlaylistItems(
+        updatePlaylistSettings(currentSourceId, {
+          projectionMode,
+          previewEye,
+          flipX,
+          flipY
+        })
+      );
+    }
   }, [currentPath, flipX, flipY, previewEye, projectionMode]);
 
   useEffect(() => {
@@ -831,6 +963,34 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(HISTORY_PANEL_WIDTH_KEY, String(historyPanelWidth));
   }, [historyPanelWidth]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const checkRelease = async () => {
+      try {
+        const release = window.vr180?.checkRelease
+          ? await window.vr180.checkRelease()
+          : await fetch(LATEST_RELEASE_URL).then((response) => response.json());
+        if (!isReleaseInfo(release) || compareVersions(release.version, APP_VERSION) <= 0) {
+          return;
+        }
+        if (localStorage.getItem(DISMISSED_RELEASE_TAG_KEY) === release.tag) {
+          return;
+        }
+        if (!isCancelled) {
+          setAvailableRelease(release);
+        }
+      } catch {
+        // Update checks should never interrupt playback or app startup.
+      }
+    };
+
+    void checkRelease();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let dragDepth = 0;
@@ -915,6 +1075,13 @@ export function App() {
         type="file"
         onChange={(event) => openBrowserFile(event.currentTarget.files?.[0])}
       />
+      <input
+        ref={playlistCsvInputRef}
+        className="file-input"
+        accept=".csv,text/csv"
+        type="file"
+        onChange={(event) => void importPlaylistCsvFile(event.currentTarget.files?.[0])}
+      />
       <div
         className={`app-main ${isHistoryVisible ? "" : "is-history-hidden"}`}
         style={{ "--history-panel-width": `${historyPanelWidth}px` } as React.CSSProperties}
@@ -953,6 +1120,9 @@ export function App() {
             projectionMode={projectionMode}
             onLoadedMetadata={() => {
               const video = videoRef.current;
+              if (video) {
+                video.playbackRate = playbackRate;
+              }
               const nextDuration = video?.duration ?? 0;
               setDuration(nextDuration);
               if (currentSourceId && Number.isFinite(nextDuration) && nextDuration > 0) {
@@ -1021,6 +1191,8 @@ export function App() {
             canGoPrevious={canGoPrevious}
             canGoNext={canGoNext}
             isPlaying={isPlaying}
+            playbackRate={playbackRate}
+            playbackRates={playbackRates}
             previewEye={previewEye}
             volume={volume}
             onOpen={openVideo}
@@ -1028,6 +1200,7 @@ export function App() {
             onPrevious={() => openAdjacentVideo(-1)}
             onNext={() => openAdjacentVideo(1)}
             onPreviewEye={setPreviewEye}
+            onPlaybackRate={setPlaybackRate}
             onResetView={() => setResetSignal((value) => value + 1)}
             onResetZoom={() => setZoomResetSignal((value) => value + 1)}
             onSeek={seek}
@@ -1069,6 +1242,8 @@ export function App() {
               onOpenPlaylistItem={(item) => void openPlaylistItem(item)}
               onDeletePlaylistItem={removePlaylistItem}
               onAddPlaylistVideos={() => void addPlaylistVideos()}
+              onExportPlaylistCsv={exportPlaylistCsv}
+              onImportPlaylistCsv={() => playlistCsvInputRef.current?.click()}
               onClearPlaylist={removeAllPlaylistItems}
               onPlaylistReorder={reorderPlaylist}
               onPlaylistSortDirection={changePlaylistSortDirection}
@@ -1114,6 +1289,38 @@ export function App() {
           onClose={() => setRenamingBookmarkItem(null)}
           onSave={(displayName) => renameBookmarkItem(renamingBookmarkItem, displayName)}
         />
+      )}
+      {availableRelease && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setAvailableRelease(null)}>
+          <section className="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div>
+              <p className="eyebrow">アップデートがあります</p>
+              <h2 id="update-title">{availableRelease.title}</h2>
+            </div>
+            <ul>
+              {availableRelease.changes.slice(0, 5).map((change) => (
+                <li key={change}>{change}</li>
+              ))}
+            </ul>
+            <div className="modal-actions">
+              <button type="button" onClick={() => openExternalUrl(availableRelease.github_release_url)}>
+                GitHub Release
+              </button>
+              <button type="button" onClick={() => openExternalUrl(availableRelease.download_url)}>
+                ダウンロード
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(DISMISSED_RELEASE_TAG_KEY, availableRelease.tag);
+                  setAvailableRelease(null);
+                }}
+              >
+                既読にする
+              </button>
+            </div>
+          </section>
+        </div>
       )}
       {isDraggingVideo && (
         <div className="drop-overlay">

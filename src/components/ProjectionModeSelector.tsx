@@ -36,9 +36,15 @@ export function ProjectionModeSelector({ value, onChange }: ProjectionModeSelect
           data-tooltip={projectionModeLabels[mode]}
           title={projectionModeLabels[mode]}
           type="button"
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
           onClick={() => onChange(mode)}
         >
-          {shortLabels[mode]}
+          <svg className="projection-label" viewBox="0 0 72 28" aria-hidden="true" focusable="false">
+            <text x="36" y="18" textAnchor="middle">
+              {shortLabels[mode]}
+            </text>
+          </svg>
         </button>
       ))}
     </div>

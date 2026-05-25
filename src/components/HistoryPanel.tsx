@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Bookmark, FilePlus2, History, ListVideo, Pencil, Trash2, Video } from "lucide-react";
+import { ArrowDown, ArrowUp, Bookmark, Download, FilePlus2, History, ListVideo, Pencil, Trash2, Upload, Video } from "lucide-react";
 import {
   BookmarkItem,
   BOOKMARK_LIMIT_PER_VIDEO,
@@ -35,6 +35,8 @@ type HistoryPanelProps = {
   onOpenPlaylistItem: (item: PlaylistItem) => void;
   onDeletePlaylistItem: (item: PlaylistItem) => void;
   onAddPlaylistVideos: () => void;
+  onExportPlaylistCsv: () => void;
+  onImportPlaylistCsv: () => void;
   onClearPlaylist: () => void;
   onPlaylistReorder: (draggedId: string, targetId: string) => void;
   onPlaylistSortDirection: (sortDirection: PlaylistSortDirection) => void;
@@ -112,6 +114,8 @@ export function HistoryPanel({
   onOpenPlaylistItem,
   onDeletePlaylistItem,
   onAddPlaylistVideos,
+  onExportPlaylistCsv,
+  onImportPlaylistCsv,
   onClearPlaylist,
   onPlaylistReorder,
   onPlaylistSortDirection,
@@ -163,6 +167,12 @@ export function HistoryPanel({
             <button type="button" onClick={onAddPlaylistVideos} title="動画を追加" data-tooltip="動画を追加" aria-label="動画を追加">
               <FilePlus2 size={15} strokeWidth={2.2} />
               <span>追加</span>
+            </button>
+            <button type="button" onClick={onImportPlaylistCsv} title="CSV読込" data-tooltip="CSV読込" aria-label="CSV読込">
+              <Upload size={15} strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={onExportPlaylistCsv} title="CSV保存" data-tooltip="CSV保存" aria-label="CSV保存" disabled={playlistItems.length === 0}>
+              <Download size={15} strokeWidth={2.2} />
             </button>
             <label>
               <span>ソート</span>

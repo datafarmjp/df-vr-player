@@ -49,6 +49,10 @@ export type PlaylistItem = {
   folderPath: string;
   addedAt: string;
   manualOrder: number;
+  projectionMode?: ProjectionMode;
+  previewEye?: PreviewEye;
+  flipX?: boolean;
+  flipY?: boolean;
   durationSeconds?: number;
   thumbnailDataUrl?: string;
   missing?: boolean;
@@ -90,6 +94,13 @@ export type PlaylistInput = {
   url: string;
   name: string;
   folderPath: string;
+};
+
+export type PlaylistCsvImportResult = {
+  items: PlaylistItem[];
+  aliases: Record<string, FileAlias>;
+  addedCount: number;
+  skippedCount: number;
 };
 
 const normalizePath = (path: string) => normalizeIdentity(path);
@@ -391,6 +402,128 @@ export function addPlaylistItems(inputs: PlaylistInput[]) {
   return next;
 }
 
+export function buildPlaylistCsv(playlistItems: PlaylistItem[], historyItems: HistoryItem[], aliases: Record<string, FileAlias>) {
+  const historyById = new Map(historyItems.map((item) => [item.id, item]));
+  const header = ["order", "path", "url", "name", "alias", "projectionMode", "previewEye", "flipX", "flipY", "durationSeconds", "addedAt"];
+  const rows = playlistItems
+    .slice()
+    .sort((a, b) => {
+      const orderCompare = a.manualOrder - b.manualOrder;
+      return orderCompare === 0 ? a.name.localeCompare(b.name, "ja", { numeric: true }) : orderCompare;
+    })
+    .map((item, index) => {
+      const historyItem = historyById.get(item.id);
+      const projectionMode = item.projectionMode ?? historyItem?.projectionMode ?? "";
+      const previewEye = item.previewEye ?? historyItem?.previewEye ?? "";
+      const flipX = typeof item.flipX === "boolean" ? item.flipX : historyItem?.flipX;
+      const flipY = typeof item.flipY === "boolean" ? item.flipY : historyItem?.flipY;
+      return [
+        String(index + 1),
+        item.path ?? "",
+        item.url,
+        item.name,
+        getFileAlias(aliases, item)?.displayName ?? "",
+        projectionMode,
+        previewEye,
+        typeof flipX === "boolean" ? String(flipX) : "",
+        typeof flipY === "boolean" ? String(flipY) : "",
+        typeof item.durationSeconds === "number" && Number.isFinite(item.durationSeconds) ? String(item.durationSeconds) : "",
+        item.addedAt
+      ];
+    });
+
+  return [header, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+}
+
+export function importPlaylistCsv(csv: string): PlaylistCsvImportResult {
+  const rows = parseCsv(csv);
+  if (rows.length <= 1) {
+    return {
+      items: loadPlaylist(),
+      aliases: loadAliases(),
+      addedCount: 0,
+      skippedCount: 0
+    };
+  }
+
+  const header = rows[0].map((cell) => cell.trim());
+  const indexOf = (key: string) => header.indexOf(key);
+  const pathIndex = indexOf("path");
+  const urlIndex = indexOf("url");
+  const nameIndex = indexOf("name");
+  const aliasIndex = indexOf("alias");
+  const projectionModeIndex = indexOf("projectionMode");
+  const previewEyeIndex = indexOf("previewEye");
+  const flipXIndex = indexOf("flipX");
+  const flipYIndex = indexOf("flipY");
+  const durationIndex = indexOf("durationSeconds");
+  const addedAtIndex = indexOf("addedAt");
+
+  const existingItems = loadPlaylist();
+  const existingIds = new Set(existingItems.map((item) => item.id));
+  const nextItems = existingItems.slice();
+  let nextOrder = existingItems.reduce((maxOrder, item) => Math.max(maxOrder, item.manualOrder), -1) + 1;
+  let addedCount = 0;
+  let skippedCount = 0;
+  let aliases = loadAliases();
+
+  rows.slice(1).forEach((row) => {
+    const pathValue = readCsvCell(row, pathIndex);
+    const urlValue = readCsvCell(row, urlIndex) || (pathValue ? createFileUrl(pathValue) : "");
+    const nameValue = readCsvCell(row, nameIndex) || inferFileName(pathValue || urlValue);
+    if (!urlValue || !nameValue) {
+      skippedCount += 1;
+      return;
+    }
+
+    const source = {
+      path: pathValue || undefined,
+      url: urlValue,
+      name: nameValue
+    };
+    const id = createHistoryId(source);
+    const aliasValue = readCsvCell(row, aliasIndex).trim();
+    if (aliasValue) {
+      aliases = setFileAliasForSource({ id, ...source }, aliasValue);
+    }
+    if (existingIds.has(id)) {
+      skippedCount += 1;
+      return;
+    }
+
+    const durationSeconds = Number(readCsvCell(row, durationIndex));
+    const projectionMode = readProjectionMode(readCsvCell(row, projectionModeIndex));
+    const previewEye = readPreviewEye(readCsvCell(row, previewEyeIndex));
+    const nextItem: PlaylistItem = {
+      id,
+      path: source.path,
+      url: source.url,
+      name: source.name,
+      folderPath: source.path ? source.path.split("/").slice(0, -1).join("/") : "",
+      addedAt: readCsvCell(row, addedAtIndex) || new Date().toISOString(),
+      manualOrder: nextOrder,
+      projectionMode,
+      previewEye,
+      flipX: readBoolean(readCsvCell(row, flipXIndex)),
+      flipY: readBoolean(readCsvCell(row, flipYIndex)),
+      durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined,
+      missing: false
+    };
+    nextOrder += 1;
+    addedCount += 1;
+    existingIds.add(id);
+    nextItems.push(nextItem);
+  });
+
+  savePlaylist(nextItems);
+  return {
+    items: nextItems,
+    aliases,
+    addedCount,
+    skippedCount
+  };
+}
+
 export function clearPlaylist() {
   savePlaylist([]);
   return [];
@@ -424,6 +557,13 @@ export function updatePlaylistDuration(id: string, durationSeconds: number) {
 
   const normalizedId = normalizeIdentity(id);
   const next = loadPlaylist().map((item) => (item.id === normalizedId ? { ...item, durationSeconds, missing: false } : item));
+  savePlaylist(next);
+  return next;
+}
+
+export function updatePlaylistSettings(id: string, settings: HistorySettings) {
+  const normalizedId = normalizeIdentity(id);
+  const next = loadPlaylist().map((item) => (item.id === normalizedId ? { ...item, ...settings } : item));
   savePlaylist(next);
   return next;
 }
@@ -600,6 +740,82 @@ export function buildAliasCsv(historyItems: HistoryItem[], aliases: Record<strin
 
 function escapeCsvCell(value: string) {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function parseCsv(csv: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  const value = csv.replace(/^\uFEFF/, "");
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    const nextChar = value[index + 1];
+    if (inQuotes) {
+      if (char === '"' && nextChar === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (char !== "\r") {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some((entry) => entry.trim())) {
+    rows.push(row);
+  }
+  return rows;
+}
+
+function readCsvCell(row: string[], index: number) {
+  return index >= 0 ? row[index] ?? "" : "";
+}
+
+function readProjectionMode(value: string): ProjectionMode | undefined {
+  const trimmed = value.trim();
+  return trimmed === "vr180-sbs" || trimmed === "vr180-tb" || trimmed === "vr180-2d" || trimmed === "vr360-sbs" || trimmed === "vr360-tb" || trimmed === "vr360-2d" || trimmed === "flat"
+    ? trimmed
+    : undefined;
+}
+
+function readPreviewEye(value: string): PreviewEye | undefined {
+  const trimmed = value.trim();
+  return trimmed === "left" || trimmed === "right" ? trimmed : undefined;
+}
+
+function readBoolean(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === "true" || trimmed === "1" || trimmed === "yes") {
+    return true;
+  }
+  if (trimmed === "false" || trimmed === "0" || trimmed === "no") {
+    return false;
+  }
+  return undefined;
+}
+
+function createFileUrl(pathValue: string) {
+  const normalizedPath = pathValue.startsWith("/") ? pathValue : `/${pathValue}`;
+  return `file://${normalizedPath.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
 }
 
 function inferFileName(value: string) {

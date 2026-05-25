@@ -1,9 +1,11 @@
+import { useState } from "react";
 import {
   BookmarkPlus,
   Eye,
   FlipHorizontal,
   FlipVertical,
   FolderOpen,
+  Gauge,
   Pause,
   Play,
   RotateCcw,
@@ -24,10 +26,13 @@ type ControlBarProps = {
   canAddBookmark: boolean;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  playbackRate: number;
+  playbackRates: number[];
   onOpen: () => void;
   onAddBookmark: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onPlaybackRate: (playbackRate: number) => void;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onVolume: (volume: number) => void;
@@ -60,10 +65,13 @@ export function ControlBar({
   canAddBookmark,
   canGoPrevious,
   canGoNext,
+  playbackRate,
+  playbackRates,
   onOpen,
   onAddBookmark,
   onPrevious,
   onNext,
+  onPlaybackRate,
   onTogglePlay,
   onSeek,
   onVolume,
@@ -73,6 +81,7 @@ export function ControlBar({
   onResetView,
   onResetZoom
 }: ControlBarProps) {
+  const [isRateMenuOpen, setIsRateMenuOpen] = useState(false);
   const playLabel = isPlaying ? "一時停止" : "再生";
 
   return (
@@ -121,6 +130,37 @@ export function ControlBar({
         value={volume}
         onChange={(event) => onVolume(Number(event.currentTarget.value))}
       />
+      <div className="rate-menu">
+        <button
+          aria-label="再生速度"
+          className="icon-button rate-button"
+          data-tooltip="再生速度"
+          type="button"
+          onClick={() => setIsRateMenuOpen((value) => !value)}
+        >
+          <Gauge size={17} strokeWidth={2.2} />
+          <span>{playbackRate}x</span>
+        </button>
+        {isRateMenuOpen && (
+          <div className="rate-options" role="menu" aria-label="再生速度">
+            {playbackRates.map((rate) => (
+              <button
+                key={rate}
+                className={playbackRate === rate ? "is-selected" : ""}
+                type="button"
+                role="menuitemradio"
+                aria-checked={playbackRate === rate}
+                onClick={() => {
+                  onPlaybackRate(rate);
+                  setIsRateMenuOpen(false);
+                }}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="compact-segment" aria-label="プレビューする目">
         <button
           aria-label="左目"

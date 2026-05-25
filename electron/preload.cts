@@ -21,5 +21,7 @@ contextBridge.exposeInMainWorld("vr180", {
   openVideoPath: (path: string) => ipcRenderer.invoke("video:openPath", path) as Promise<OpenVideoResult>,
   recoverVideoByName: (name: string) => ipcRenderer.invoke("video:recoverByName", name) as Promise<OpenVideoResult>,
   openSupport: () => ipcRenderer.invoke("shell:openSupport") as Promise<void>,
+  openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url) as Promise<void>,
+  checkRelease: () => ipcRenderer.invoke("release:check") as Promise<unknown>,
   getPathForFile: (file: File) => webUtils.getPathForFile(file)
 });
