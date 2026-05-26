@@ -11,6 +11,8 @@ import {
   RotateCcw,
   SkipBack,
   SkipForward,
+  Volume2,
+  VolumeX,
   ZoomOut
 } from "lucide-react";
 import { PreviewEye } from "../vr/projectionModes";
@@ -20,6 +22,7 @@ type ControlBarProps = {
   duration: number;
   currentTime: number;
   volume: number;
+  isMuted: boolean;
   previewEye: PreviewEye;
   flipX: boolean;
   flipY: boolean;
@@ -36,6 +39,7 @@ type ControlBarProps = {
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onVolume: (volume: number) => void;
+  onToggleMute: () => void;
   onPreviewEye: (eye: PreviewEye) => void;
   onToggleFlipX: () => void;
   onToggleFlipY: () => void;
@@ -59,6 +63,7 @@ export function ControlBar({
   duration,
   currentTime,
   volume,
+  isMuted,
   previewEye,
   flipX,
   flipY,
@@ -75,6 +80,7 @@ export function ControlBar({
   onTogglePlay,
   onSeek,
   onVolume,
+  onToggleMute,
   onPreviewEye,
   onToggleFlipX,
   onToggleFlipY,
@@ -82,7 +88,10 @@ export function ControlBar({
   onResetZoom
 }: ControlBarProps) {
   const [isRateMenuOpen, setIsRateMenuOpen] = useState(false);
+  const [isVolumeMenuOpen, setIsVolumeMenuOpen] = useState(false);
   const playLabel = isPlaying ? "一時停止" : "再生";
+  const volumePercent = Math.round(volume * 100);
+  const volumeLabel = isMuted ? "ミュート中" : `音量 ${volumePercent}%`;
 
   return (
     <footer className="control-bar">
@@ -120,16 +129,36 @@ export function ControlBar({
         onChange={(event) => onSeek(Number(event.currentTarget.value))}
       />
       <span className="time">{formatTime(duration)}</span>
-      <input
-        aria-label="音量"
-        className="volume"
-        max={1}
-        min={0}
-        step={0.01}
-        type="range"
-        value={volume}
-        onChange={(event) => onVolume(Number(event.currentTarget.value))}
-      />
+      <div className="volume-menu">
+        <button
+          aria-label="音量"
+          className={`icon-button volume-button ${isMuted ? "is-muted" : ""}`}
+          data-tooltip={volumeLabel}
+          title={volumeLabel}
+          type="button"
+          onClick={() => setIsVolumeMenuOpen((value) => !value)}
+        >
+          {isMuted ? <VolumeX size={17} strokeWidth={2.2} /> : <Volume2 size={17} strokeWidth={2.2} />}
+          <span>{isMuted ? "off" : `${volumePercent}%`}</span>
+        </button>
+        {isVolumeMenuOpen && (
+          <div className="volume-popover" role="group" aria-label="音量">
+            <input
+              aria-label="音量"
+              className="volume-vertical"
+              max={1}
+              min={0}
+              step={0.01}
+              type="range"
+              value={volume}
+              onChange={(event) => onVolume(Number(event.currentTarget.value))}
+            />
+            <button className={isMuted ? "is-selected" : ""} type="button" onClick={onToggleMute}>
+              {isMuted ? "解除" : "ミュート"}
+            </button>
+          </div>
+        )}
+      </div>
       <div className="rate-menu">
         <button
           aria-label="再生速度"

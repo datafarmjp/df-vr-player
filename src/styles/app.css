@@ -281,7 +281,7 @@ button.is-active {
 
 .control-bar {
   display: grid;
-  grid-template-columns: repeat(5, 40px) auto minmax(120px, 1fr) auto minmax(68px, 110px) 52px auto repeat(4, 40px);
+  grid-template-columns: repeat(5, 40px) auto minmax(140px, 1fr) auto 52px 52px auto repeat(4, 40px);
   align-items: center;
   gap: 8px;
   min-height: 72px;
@@ -307,19 +307,26 @@ button.is-active {
   display: block;
 }
 
-.rate-menu {
+.rate-menu,
+.volume-menu {
   position: relative;
   width: 52px;
 }
 
-.rate-button {
+.rate-button,
+.volume-button {
   width: 52px;
   min-width: 52px;
   gap: 2px;
   font-size: 11px;
 }
 
-.rate-options {
+.volume-button.is-muted {
+  color: #f0a4ad;
+}
+
+.rate-options,
+.volume-popover {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
@@ -335,6 +342,20 @@ button.is-active {
   transform: translateX(-50%);
 }
 
+.volume-popover {
+  place-items: center;
+  width: 64px;
+  padding: 9px 6px 6px;
+}
+
+.volume-vertical {
+  width: 28px;
+  height: 112px;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.volume-popover button,
 .rate-options button {
   min-height: 28px;
   padding: 3px 6px;
@@ -344,6 +365,11 @@ button.is-active {
   font-size: 12px;
 }
 
+.volume-popover button {
+  width: 100%;
+}
+
+.volume-popover button.is-selected,
 .rate-options button.is-selected {
   background: #d7f3e7;
   color: #13241d;
@@ -440,11 +466,6 @@ button.is-active {
 
 .seek {
   width: 100%;
-}
-
-.volume {
-  width: 100%;
-  min-width: 72px;
 }
 
 .time {
@@ -1090,7 +1111,7 @@ button.is-active {
   }
 
   .control-bar {
-    grid-template-columns: repeat(5, 36px) auto minmax(90px, 1fr) auto auto repeat(4, 36px);
+    grid-template-columns: repeat(5, 36px) auto minmax(90px, 1fr) auto auto auto auto repeat(4, 36px);
     gap: 6px;
     padding: 12px;
   }
@@ -1100,10 +1121,6 @@ button.is-active {
     min-width: 36px;
     height: 36px;
     min-height: 36px;
-  }
-
-  .control-bar .volume {
-    display: none;
   }
 
   .compact-segment {

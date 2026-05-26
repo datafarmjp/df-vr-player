@@ -222,7 +222,11 @@ export function HistoryPanel({
                   <span className="history-meta">
                     <span className="history-name">{getFileAlias(aliases, item)?.displayName ?? item.name}</span>
                     {getFileAlias(aliases, item) && <span className="history-original">{item.name}</span>}
-                    <span className="history-subline">{item.missing ? "見つかりません" : `再生 ${formatDate(item.lastOpenedAt)}`}</span>
+                    <span className="history-subline">
+                      {item.missing
+                        ? "見つかりません"
+                        : `${Number.isFinite(item.durationSeconds) ? `長さ ${formatDuration(item.durationSeconds)} · ` : ""}再生 ${formatDate(item.lastOpenedAt)}`}
+                    </span>
                   </span>
                 </button>
                 <div className="history-actions">

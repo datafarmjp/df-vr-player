@@ -20,6 +20,7 @@ export type HistoryItem = {
   previewEye: PreviewEye;
   flipX: boolean;
   flipY: boolean;
+  durationSeconds?: number;
   thumbnailDataUrl?: string;
   missing?: boolean;
 };
@@ -203,6 +204,7 @@ export function upsertHistoryItem(input: HistoryUpsertInput) {
     previewEye: input.previewEye,
     flipX: input.flipX,
     flipY: input.flipY,
+    durationSeconds: existing?.durationSeconds,
     thumbnailDataUrl: existing?.thumbnailDataUrl,
     missing: false
   };
@@ -221,6 +223,17 @@ export function attachThumbnail(path: string, thumbnailDataUrl: string) {
 export function updateHistorySettings(path: string, settings: HistorySettings) {
   const id = normalizePath(path);
   const next = loadHistory().map((item) => (item.id === id ? { ...item, ...settings } : item));
+  saveHistory(next);
+  return next;
+}
+
+export function updateHistoryDuration(path: string, durationSeconds: number) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return loadHistory();
+  }
+
+  const id = normalizePath(path);
+  const next = loadHistory().map((item) => (item.id === id ? { ...item, durationSeconds, missing: false } : item));
   saveHistory(next);
   return next;
 }

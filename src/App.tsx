@@ -47,6 +47,7 @@ import {
   sortPlaylistItems,
   updateAliasKeys,
   updateBookmarkName,
+  updateHistoryDuration,
   updateHistorySettings,
   updatePlaylistDuration,
   updatePlaylistSettings,
@@ -65,7 +66,7 @@ type VideoSource = {
 };
 
 const APP_BUILD = "2026-05-18 auto-projection-1";
-const APP_VERSION = "0.1.6";
+const APP_VERSION = "0.1.7";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
@@ -73,6 +74,8 @@ const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
 const PLAYLIST_SORT_KEY = "vr-smb-player:playlist-sort";
 const PLAYLIST_SORT_DIRECTION_KEY = "vr-smb-player:playlist-sort-direction";
 const PLAYBACK_RATE_KEY = "vr-smb-player:playback-rate";
+const VOLUME_KEY = "vr-smb-player:volume";
+const MUTED_KEY = "vr-smb-player:muted";
 const DISMISSED_RELEASE_TAG_KEY = "vr-smb-player:dismissed-release-tag";
 const LATEST_RELEASE_URL = "https://info.datafarm.jp/media/releases/DF_VRPlayer/latest.json";
 const minHistoryPanelWidth = 300;
@@ -163,7 +166,11 @@ export function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(() => {
+    const storedVolume = Number(localStorage.getItem(VOLUME_KEY));
+    return Number.isFinite(storedVolume) ? Math.min(Math.max(storedVolume, 0), 1) : 0.8;
+  });
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem(MUTED_KEY) === "true");
   const [playbackRate, setPlaybackRate] = useState(() => {
     const storedRate = Number(localStorage.getItem(PLAYBACK_RATE_KEY));
     return playbackRates.includes(storedRate) ? storedRate : 1;
@@ -865,9 +872,25 @@ export function App() {
   const changeVolume = (nextVolume: number) => {
     const clamped = Math.min(Math.max(nextVolume, 0), 1);
     setVolume(clamped);
+    if (clamped > 0) {
+      setIsMuted(false);
+    }
     if (videoRef.current) {
       videoRef.current.volume = clamped;
+      if (clamped > 0) {
+        videoRef.current.muted = false;
+      }
     }
+  };
+
+  const toggleMute = () => {
+    setIsMuted((value) => {
+      const nextValue = !value;
+      if (videoRef.current) {
+        videoRef.current.muted = nextValue;
+      }
+      return nextValue;
+    });
   };
 
   useEffect(() => {
@@ -913,8 +936,11 @@ export function App() {
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
+      videoRef.current.muted = isMuted;
     }
-  }, [videoUrl, volume]);
+    localStorage.setItem(VOLUME_KEY, String(volume));
+    localStorage.setItem(MUTED_KEY, String(isMuted));
+  }, [isMuted, videoUrl, volume]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -1126,6 +1152,7 @@ export function App() {
               const nextDuration = video?.duration ?? 0;
               setDuration(nextDuration);
               if (currentSourceId && Number.isFinite(nextDuration) && nextDuration > 0) {
+                setHistoryItems(updateHistoryDuration(currentSourceId, nextDuration));
                 setPlaylistItems(updatePlaylistDuration(currentSourceId, nextDuration));
               }
               if (currentSourceId && videoUrl && playlistItems.some((item) => item.id === currentSourceId)) {
@@ -1194,6 +1221,7 @@ export function App() {
             playbackRate={playbackRate}
             playbackRates={playbackRates}
             previewEye={previewEye}
+            isMuted={isMuted}
             volume={volume}
             onOpen={openVideo}
             onAddBookmark={addCurrentBookmark}
@@ -1206,6 +1234,7 @@ export function App() {
             onSeek={seek}
             onToggleFlipX={() => setFlipX((value) => !value)}
             onToggleFlipY={() => setFlipY((value) => !value)}
+            onToggleMute={toggleMute}
             onTogglePlay={() => void togglePlay()}
             onVolume={changeVolume}
           />
