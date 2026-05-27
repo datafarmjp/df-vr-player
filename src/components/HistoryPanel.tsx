@@ -93,6 +93,8 @@ const panelTabs: { tab: SidePanelTab; label: string; icon: ReactNode }[] = [
   { tab: "playlist", label: "プレイリスト", icon: <ListVideo size={16} strokeWidth={2.2} /> }
 ];
 
+const formatBadgeCount = (count: number) => (count > 99 ? "99+" : String(count));
+
 export function HistoryPanel({
   items,
   bookmarks,
@@ -125,25 +127,41 @@ export function HistoryPanel({
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const visibleBookmarks = activeId ? bookmarks.filter((item) => item.sourceId === activeId) : bookmarks;
   const historyThumbnailById = new Map(items.filter((item) => item.thumbnailDataUrl).map((item) => [item.id, item.thumbnailDataUrl]));
+  const getPanelTabCount = (tab: SidePanelTab) => {
+    if (tab === "history") {
+      return items.length;
+    }
+    if (tab === "bookmarks") {
+      return visibleBookmarks.length;
+    }
+    return playlistItems.length;
+  };
 
   return (
     <aside className="history-panel" aria-label="履歴">
       <div className="history-header">
         <div className="panel-tabs" role="tablist" aria-label="履歴、ブックマーク、プレイリスト">
-          {panelTabs.map((item) => (
-            <button
-              key={item.tab}
-              aria-label={item.label}
-              className={activeTab === item.tab ? "is-selected" : ""}
-              data-tooltip={item.label}
-              title={item.label}
-              type="button"
-              role="tab"
-              onClick={() => onTabChange(item.tab)}
-            >
-              {item.icon}
-            </button>
-          ))}
+          {panelTabs.map((item) => {
+            const count = getPanelTabCount(item.tab);
+            const tooltip = `${item.label} ${count}件`;
+            return (
+              <button
+                key={item.tab}
+                aria-label={tooltip}
+                className={activeTab === item.tab ? "is-selected" : ""}
+                data-tooltip={tooltip}
+                title={tooltip}
+                type="button"
+                role="tab"
+                onClick={() => onTabChange(item.tab)}
+              >
+                {item.icon}
+                <span className="panel-tab-count" aria-hidden="true">
+                  {formatBadgeCount(count)}
+                </span>
+              </button>
+            );
+          })}
         </div>
         {activeTab === "history" ? (
           <div className="history-header-actions">

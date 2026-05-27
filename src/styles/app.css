@@ -517,10 +517,12 @@ button.is-active {
 
 .panel-tabs button {
   position: relative;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 28px;
-  padding: 3px;
+  padding: 3px 8px;
   border: 0;
   color: #b6bdca;
   background: transparent;
@@ -535,6 +537,20 @@ button.is-active {
 .panel-tabs button.is-selected {
   color: #15171c;
   background: #e7edf8;
+}
+
+.panel-tab-count {
+  min-width: 1.2em;
+  color: #8f98a8;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.panel-tabs button.is-selected .panel-tab-count {
+  color: #375045;
 }
 
 .history-header-actions {

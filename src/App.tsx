@@ -66,7 +66,7 @@ type VideoSource = {
 };
 
 const APP_BUILD = "2026-05-18 auto-projection-1";
-const APP_VERSION = "0.1.7";
+const APP_VERSION = "0.1.8";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
