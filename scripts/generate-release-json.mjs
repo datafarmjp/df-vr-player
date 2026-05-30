@@ -12,7 +12,8 @@ const tag = `v${version}`;
 const releaseDate = process.env.RELEASE_DATE || new Date().toISOString().slice(0, 10);
 const dmgName = `DF VR Player-${version}-arm64.dmg`;
 const githubReleaseUrl = `https://github.com/datafarmjp/df-vr-player/releases/tag/${tag}`;
-const downloadUrl = `https://info.datafarm.jp/media/releases/${product}/${dmgName}`;
+const githubAssetDmgName = dmgName.replaceAll(" ", ".");
+const downloadUrl = `https://github.com/datafarmjp/df-vr-player/releases/download/${tag}/${githubAssetDmgName}`;
 const fallbackChange = "初回公開用のリリース情報を追加しました。";
 
 const extractChanges = () => {
@@ -64,4 +65,3 @@ for (const fileName of ["latest.json", `${tag}.json`]) {
   JSON.parse(fs.readFileSync(outputPath, "utf8"));
   console.log(outputPath);
 }
-
