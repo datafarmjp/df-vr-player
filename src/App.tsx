@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Info, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { AboutModal } from "./components/AboutModal";
+import { PanelRightClose, PanelRightOpen, Settings } from "lucide-react";
 import { AliasManagerModal } from "./components/AliasManagerModal";
 import { ControlBar } from "./components/ControlBar";
 import { HistoryPanel } from "./components/HistoryPanel";
@@ -8,7 +7,8 @@ import { PlayerView } from "./components/PlayerView";
 import { ProjectionModeSelector } from "./components/ProjectionModeSelector";
 import { RenameAliasModal } from "./components/RenameAliasModal";
 import { RenameBookmarkModal } from "./components/RenameBookmarkModal";
-import { languageLabels, useI18n, type Language } from "./i18n";
+import { SettingsModal } from "./components/SettingsModal";
+import { useI18n } from "./i18n";
 import {
   addBookmark,
   addPlaylistItems,
@@ -66,8 +66,8 @@ type VideoSource = {
   remember: boolean;
 };
 
-const APP_BUILD = "2026-05-31 stable-storage-1";
-const APP_VERSION = "0.1.10";
+const APP_BUILD = "2026-05-31 settings-panel-1";
+const APP_VERSION = "0.1.11";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
@@ -145,7 +145,7 @@ const isReleaseInfo = (value: unknown): value is ReleaseInfo => {
 };
 
 export function App() {
-  const { language, setLanguage, t } = useI18n();
+  const { language, t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const playlistCsvInputRef = useRef<HTMLInputElement | null>(null);
@@ -194,7 +194,7 @@ export function App() {
   const [historyDiagnostics, setHistoryDiagnostics] = useState<Record<string, string>>({});
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
   const [isAliasManagerOpen, setIsAliasManagerOpen] = useState(false);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [renamingHistoryItem, setRenamingHistoryItem] = useState<HistoryItem | null>(null);
   const [renamingBookmarkItem, setRenamingBookmarkItem] = useState<BookmarkItem | null>(null);
   const [availableRelease, setAvailableRelease] = useState<ReleaseInfo | null>(null);
@@ -1123,15 +1123,8 @@ export function App() {
             </div>
             <div className="top-actions">
               <ProjectionModeSelector value={projectionMode} onChange={setProjectionMode} />
-              <label className="language-select" title={t("app.language")}>
-                <span>{t("app.language")}</span>
-                <select value={language} onChange={(event) => setLanguage(event.currentTarget.value as Language)}>
-                  <option value="ja">{languageLabels.ja}</option>
-                  <option value="en">{languageLabels.en}</option>
-                </select>
-              </label>
-              <button aria-label={t("app.info")} className="top-icon-button" type="button" title={t("app.info")} onClick={() => setIsAboutOpen(true)}>
-                <Info size={18} strokeWidth={2.2} />
+              <button aria-label={t("settings.title")} className="top-icon-button" type="button" title={t("settings.title")} onClick={() => setIsSettingsOpen(true)}>
+                <Settings size={18} strokeWidth={2.2} />
               </button>
               <button
                 aria-label={t("app.sidePanel")}
@@ -1301,10 +1294,11 @@ export function App() {
           onRename={renameAliasRow}
         />
       )}
-      {isAboutOpen && (
-        <AboutModal
+      {isSettingsOpen && (
+        <SettingsModal
+          build={APP_BUILD}
           version={APP_VERSION}
-          onClose={() => setIsAboutOpen(false)}
+          onClose={() => setIsSettingsOpen(false)}
           onOpenSupport={() => {
             if (window.vr180?.openSupport) {
               void window.vr180.openSupport();
