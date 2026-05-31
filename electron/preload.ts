@@ -23,5 +23,7 @@ contextBridge.exposeInMainWorld("vr180", {
   openSupport: () => ipcRenderer.invoke("shell:openSupport") as Promise<void>,
   openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url) as Promise<void>,
   checkRelease: () => ipcRenderer.invoke("release:check") as Promise<unknown>,
+  getStorageItem: (key: string) => ipcRenderer.sendSync("storage:get", key) as string | null,
+  setStorageItem: (key: string, value: string) => ipcRenderer.sendSync("storage:set", key, value) as boolean,
   getPathForFile: (file: File) => webUtils.getPathForFile(file)
 });

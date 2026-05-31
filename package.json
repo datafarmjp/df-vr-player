@@ -1,6 +1,6 @@
 {
   "name": "df-vr-player",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "ローカル、外付けドライブ、NAS上のVR180/VR360動画を開けるMac用デスクトッププレイヤー。",
   "author": "株式会社データファーム",
   "private": true,

@@ -24,6 +24,8 @@ interface Window {
     openSupport: () => Promise<void>;
     openExternal: (url: string) => Promise<void>;
     checkRelease: () => Promise<unknown>;
+    getStorageItem: (key: string) => string | null;
+    setStorageItem: (key: string, value: string) => boolean;
     getPathForFile: (file: File) => string;
   };
 }

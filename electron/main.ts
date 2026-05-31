@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, OpenDialogOptions, shell } from "electron";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -30,6 +31,26 @@ const normalizeLanguage = (language: unknown): Language => {
     return language;
   }
   return app.getLocale().toLowerCase().startsWith("en") ? "en" : "ja";
+};
+
+const storageFilePath = () => path.join(app.getPath("userData"), "storage.json");
+
+const readStorage = (): Record<string, string> => {
+  try {
+    const raw = fsSync.readFileSync(storageFilePath(), "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, string> : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeStorage = (storage: Record<string, string>) => {
+  const filePath = storageFilePath();
+  fsSync.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tempPath = `${filePath}.${process.pid}.tmp`;
+  fsSync.writeFileSync(tempPath, `${JSON.stringify(storage, null, 2)}\n`);
+  fsSync.renameSync(tempPath, filePath);
 };
 
 function createWindow() {
@@ -200,6 +221,29 @@ app.whenReady().then(() => {
       throw new Error(`Release check failed: ${response.status}`);
     }
     return response.json();
+  });
+
+  ipcMain.on("storage:get", (event, key: string) => {
+    if (!key.startsWith("vr-smb-player:")) {
+      event.returnValue = null;
+      return;
+    }
+    event.returnValue = readStorage()[key] ?? null;
+  });
+
+  ipcMain.on("storage:set", (event, key: string, value: string) => {
+    if (!key.startsWith("vr-smb-player:")) {
+      event.returnValue = false;
+      return;
+    }
+    try {
+      const storage = readStorage();
+      storage[key] = value;
+      writeStorage(storage);
+      event.returnValue = true;
+    } catch {
+      event.returnValue = false;
+    }
   });
 
   createWindow();

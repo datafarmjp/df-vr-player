@@ -104,6 +104,44 @@ export type PlaylistCsvImportResult = {
   skippedCount: number;
 };
 
+const readStorageItem = (key: string) => {
+  try {
+    const persistedValue = window.vr180?.getStorageItem(key);
+    if (persistedValue !== null && persistedValue !== undefined) {
+      return persistedValue;
+    }
+
+    const localValue = localStorage.getItem(key);
+    if (localValue !== null && window.vr180?.setStorageItem) {
+      window.vr180.setStorageItem(key, localValue);
+    }
+    return localValue;
+  } catch {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+};
+
+const writeStorageItem = (key: string, value: string) => {
+  let didPersist = false;
+  try {
+    didPersist = Boolean(window.vr180?.setStorageItem(key, value));
+  } catch {
+    didPersist = false;
+  }
+
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Electron's userData-backed store above is the durable store in packaged builds.
+  }
+
+  return didPersist;
+};
+
 const normalizePath = (path: string) => normalizeIdentity(path);
 
 function normalizeIdentity(value: string) {
@@ -159,7 +197,7 @@ function isHistoryItem(value: unknown): value is HistoryItem {
 
 export function loadHistory(): HistoryItem[] {
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
+    const raw = readStorageItem(HISTORY_KEY);
     if (!raw) {
       return [];
     }
@@ -182,10 +220,10 @@ export function loadHistory(): HistoryItem[] {
 export function saveHistory(items: HistoryItem[]) {
   const limitedItems = items.slice(0, HISTORY_LIMIT);
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(limitedItems));
+    writeStorageItem(HISTORY_KEY, JSON.stringify(limitedItems));
   } catch {
     const withoutThumbnails = limitedItems.map(({ thumbnailDataUrl: _thumbnailDataUrl, ...item }) => item);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(withoutThumbnails));
+    writeStorageItem(HISTORY_KEY, JSON.stringify(withoutThumbnails));
   }
 }
 
@@ -267,7 +305,7 @@ function isBookmarkItem(value: unknown): value is BookmarkItem {
 
 export function loadBookmarks(): BookmarkItem[] {
   try {
-    const raw = localStorage.getItem(BOOKMARKS_KEY);
+    const raw = readStorageItem(BOOKMARKS_KEY);
     if (!raw) {
       return [];
     }
@@ -285,10 +323,10 @@ export function loadBookmarks(): BookmarkItem[] {
 
 export function saveBookmarks(items: BookmarkItem[]) {
   try {
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(items));
+    writeStorageItem(BOOKMARKS_KEY, JSON.stringify(items));
   } catch {
     const withoutThumbnails = items.map(({ thumbnailDataUrl: _thumbnailDataUrl, ...item }) => item);
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(withoutThumbnails));
+    writeStorageItem(BOOKMARKS_KEY, JSON.stringify(withoutThumbnails));
   }
 }
 
@@ -358,7 +396,7 @@ function isPlaylistItem(value: unknown): value is PlaylistItem {
 
 export function loadPlaylist(): PlaylistItem[] {
   try {
-    const raw = localStorage.getItem(PLAYLIST_KEY);
+    const raw = readStorageItem(PLAYLIST_KEY);
     if (!raw) {
       return [];
     }
@@ -384,10 +422,10 @@ export function loadPlaylist(): PlaylistItem[] {
 export function savePlaylist(items: PlaylistItem[]) {
   const dedupedItems = dedupePlaylistItems(items);
   try {
-    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(dedupedItems));
+    writeStorageItem(PLAYLIST_KEY, JSON.stringify(dedupedItems));
   } catch {
     const withoutThumbnails = dedupedItems.map(({ thumbnailDataUrl: _thumbnailDataUrl, ...item }) => item);
-    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(withoutThumbnails));
+    writeStorageItem(PLAYLIST_KEY, JSON.stringify(withoutThumbnails));
   }
 }
 
@@ -629,7 +667,7 @@ export function sortPlaylistItems(items: PlaylistItem[], sortMode: PlaylistSortM
 
 export function loadAliases(): Record<string, FileAlias> {
   try {
-    const raw = localStorage.getItem(ALIASES_KEY);
+    const raw = readStorageItem(ALIASES_KEY);
     if (!raw) {
       return {};
     }
@@ -646,7 +684,7 @@ export function loadAliases(): Record<string, FileAlias> {
 }
 
 export function saveAliases(aliases: Record<string, FileAlias>) {
-  localStorage.setItem(ALIASES_KEY, JSON.stringify(aliases));
+  writeStorageItem(ALIASES_KEY, JSON.stringify(aliases));
 }
 
 export function setFileAliasForSource(source: Partial<AliasSource>, displayName: string) {
