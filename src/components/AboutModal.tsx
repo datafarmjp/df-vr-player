@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import appIconUrl from "../assets/icon.png";
+import { useI18n } from "../i18n";
 
 type AboutModalProps = {
   version: string;
@@ -8,6 +9,8 @@ type AboutModalProps = {
 };
 
 export function AboutModal({ version, onClose, onOpenSupport }: AboutModalProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -30,15 +33,15 @@ export function AboutModal({ version, onClose, onOpenSupport }: AboutModalProps)
           </div>
         </header>
         <div className="about-modal-body">
-          <p>Mac上でVR180/VR360動画を見るためのデスクトッププレイヤーです。</p>
-          <p className="about-copyright">© 2026 株式会社データファーム</p>
+          <p>{t("about.description")}</p>
+          <p className="about-copyright">{t("about.copyright")}</p>
         </div>
         <footer className="about-modal-actions">
           <button type="button" onClick={onOpenSupport}>
-            開発支援 1,000円
+            {t("about.support")}
           </button>
           <button type="button" onClick={onClose}>
-            閉じる
+            {t("common.close")}
           </button>
         </footer>
       </section>

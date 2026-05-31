@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
 import { AliasManagerRow } from "../state/historyStore";
 
 type AliasManagerModalProps = {
@@ -9,13 +10,13 @@ type AliasManagerModalProps = {
   onDelete: (row: AliasManagerRow) => void;
 };
 
-const formatDate = (value: string) => {
+const formatDate = (value: string, locale: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -25,6 +26,7 @@ const formatDate = (value: string) => {
 };
 
 export function AliasManagerModal({ rows, onClose, onExportCsv, onRename, onDelete }: AliasManagerModalProps) {
+  const { locale, t } = useI18n();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
 
@@ -59,30 +61,30 @@ export function AliasManagerModal({ rows, onClose, onExportCsv, onRename, onDele
       <section className="alias-modal" role="dialog" aria-modal="true" aria-labelledby="alias-modal-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="alias-modal-header">
           <div>
-            <h2 id="alias-modal-title">別名管理</h2>
-            <p>{rows.length}件の別名を管理します。</p>
+            <h2 id="alias-modal-title">{t("alias.title")}</h2>
+            <p>{t("alias.summary", { count: rows.length })}</p>
           </div>
           <div className="alias-modal-actions">
             <button type="button" onClick={onExportCsv}>
-              CSVダウンロード
+              {t("alias.exportCsv")}
             </button>
             <button type="button" onClick={onClose}>
-              閉じる
+              {t("common.close")}
             </button>
           </div>
         </header>
 
         {rows.length === 0 ? (
-          <p className="alias-empty">保存済みの別名はありません。</p>
+          <p className="alias-empty">{t("alias.empty")}</p>
         ) : (
           <div className="alias-table-wrap">
             <table className="alias-table">
               <thead>
                 <tr>
-                  <th>元ファイル名</th>
-                  <th>別名</th>
-                  <th>更新日時</th>
-                  <th>操作</th>
+                  <th>{t("alias.originalFile")}</th>
+                  <th>{t("alias.displayName")}</th>
+                  <th>{t("alias.updatedAt")}</th>
+                  <th>{t("alias.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,25 +118,25 @@ export function AliasManagerModal({ rows, onClose, onExportCsv, onRename, onDele
                           <span className="alias-display-name">{row.displayName}</span>
                         )}
                       </td>
-                      <td className="alias-updated-at">{formatDate(row.updatedAt)}</td>
+                      <td className="alias-updated-at">{formatDate(row.updatedAt, locale)}</td>
                       <td>
                         <div className="alias-row-actions">
                           {isEditing ? (
                             <>
                               <button type="button" onClick={() => commitEditing(row)}>
-                                保存
+                                {t("common.save")}
                               </button>
                               <button type="button" onClick={stopEditing}>
-                                取消
+                                {t("common.cancel")}
                               </button>
                             </>
                           ) : (
                             <>
                               <button type="button" onClick={() => startEditing(row)}>
-                                編集
+                                {t("common.edit")}
                               </button>
                               <button type="button" onClick={() => onDelete(row)}>
-                                削除
+                                {t("common.delete")}
                               </button>
                             </>
                           )}

@@ -8,6 +8,7 @@ import { PlayerView } from "./components/PlayerView";
 import { ProjectionModeSelector } from "./components/ProjectionModeSelector";
 import { RenameAliasModal } from "./components/RenameAliasModal";
 import { RenameBookmarkModal } from "./components/RenameBookmarkModal";
+import { languageLabels, useI18n, type Language } from "./i18n";
 import {
   addBookmark,
   addPlaylistItems,
@@ -65,8 +66,8 @@ type VideoSource = {
   remember: boolean;
 };
 
-const APP_BUILD = "2026-05-18 auto-projection-1";
-const APP_VERSION = "0.1.8";
+const APP_BUILD = "2026-05-31 localization-1";
+const APP_VERSION = "0.1.9";
 const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
@@ -144,6 +145,7 @@ const isReleaseInfo = (value: unknown): value is ReleaseInfo => {
 };
 
 export function App() {
+  const { language, setLanguage, t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const playlistCsvInputRef = useRef<HTMLInputElement | null>(null);
@@ -157,8 +159,8 @@ export function App() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [currentSourceId, setCurrentSourceId] = useState<string | null>(null);
-  const [currentSourceName, setCurrentSourceName] = useState<string>("未選択");
-  const [fileName, setFileName] = useState<string>("未選択");
+  const [currentSourceName, setCurrentSourceName] = useState<string>("");
+  const [fileName, setFileName] = useState<string>("");
   const [projectionMode, setProjectionMode] = useState<ProjectionMode>("vr180-sbs");
   const [previewEye, setPreviewEye] = useState<PreviewEye>("left");
   const [flipX, setFlipX] = useState(false);
@@ -207,6 +209,7 @@ export function App() {
   const currentPlaylistIndex = currentSourceId ? sortedPlaylistItems.findIndex((item) => item.id === currentSourceId) : -1;
   const canGoPrevious = currentPlaylistIndex > 0;
   const canGoNext = sortedPlaylistItems.length > 0 && currentPlaylistIndex >= 0 && currentPlaylistIndex < sortedPlaylistItems.length - 1;
+  const displayFileName = fileName || t("app.noSelection");
 
   const currentSettings = (): HistorySettings => ({
     projectionMode,
@@ -304,12 +307,12 @@ export function App() {
 
   const openVideo = async () => {
     if (!window.vr180) {
-      window.alert("Electron APIを読み込めませんでした。最新版アプリを起動し直してください。");
+      window.alert(t("alert.electronApiMissing"));
       fileInputRef.current?.click();
       return;
     }
 
-    const result = await window.vr180.openVideo().catch(() => null);
+    const result = await window.vr180.openVideo(language).catch(() => null);
     if (!result) {
       return;
     }
@@ -339,11 +342,11 @@ export function App() {
 
   const addPlaylistVideos = async () => {
     if (!window.vr180?.openPlaylistVideos) {
-      window.alert("プレイリスト追加APIを読み込めませんでした。最新版アプリを起動し直してください。");
+      window.alert(t("alert.playlistApiMissing"));
       return;
     }
 
-    const result = await window.vr180.openPlaylistVideos().catch(() => null);
+    const result = await window.vr180.openPlaylistVideos(language).catch(() => null);
     if (!result || result.length === 0) {
       return;
     }
@@ -543,7 +546,7 @@ export function App() {
   };
 
   const removeHistoryItem = (item: HistoryItem) => {
-    const confirmed = window.confirm(`履歴から削除しますか？\n${getFileAlias(aliases, item)?.displayName ?? item.name}\n\n別名は残ります。`);
+    const confirmed = window.confirm(t("confirm.deleteHistory", { name: getFileAlias(aliases, item)?.displayName ?? item.name }));
     if (!confirmed) {
       return;
     }
@@ -556,7 +559,7 @@ export function App() {
       return;
     }
 
-    const confirmed = window.confirm(`履歴をすべて削除しますか？\n\n別名は残ります。`);
+    const confirmed = window.confirm(t("confirm.clearHistory"));
     if (!confirmed) {
       return;
     }
@@ -572,7 +575,7 @@ export function App() {
     }
 
     const bookmarkTime = Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
-    const displayName = `${formatBookmarkTime(bookmarkTime)} のブックマーク`;
+    const displayName = t("bookmark.defaultName", { time: formatBookmarkTime(bookmarkTime) });
     const source = {
       path: currentPath ?? undefined,
       url: videoUrl,
@@ -678,7 +681,7 @@ export function App() {
   };
 
   const removeBookmarkItem = (item: BookmarkItem) => {
-    const confirmed = window.confirm(`ブックマークを削除しますか？\n${item.displayName}`);
+    const confirmed = window.confirm(t("confirm.deleteBookmark", { name: item.displayName }));
     if (!confirmed) {
       return;
     }
@@ -691,7 +694,7 @@ export function App() {
       return;
     }
 
-    const confirmed = window.confirm("ブックマークをすべて削除しますか？");
+    const confirmed = window.confirm(t("confirm.clearBookmarks"));
     if (!confirmed) {
       return;
     }
@@ -704,7 +707,7 @@ export function App() {
       return;
     }
 
-    const confirmed = window.confirm("プレイリストをすべて削除しますか？");
+    const confirmed = window.confirm(t("confirm.clearPlaylist"));
     if (!confirmed) {
       return;
     }
@@ -713,7 +716,7 @@ export function App() {
   };
 
   const removePlaylistItem = (item: PlaylistItem) => {
-    const confirmed = window.confirm(`プレイリストから削除しますか？\n${getFileAlias(aliases, item)?.displayName ?? item.name}\n\n動画ファイル、履歴、別名、ブックマークは削除されません。`);
+    const confirmed = window.confirm(t("confirm.deletePlaylist", { name: getFileAlias(aliases, item)?.displayName ?? item.name }));
     if (!confirmed) {
       return;
     }
@@ -789,9 +792,9 @@ export function App() {
       changePlaylistSortDirection("asc");
       changeSidePanelTab("playlist");
       setIsHistoryVisible(true);
-      window.alert(`プレイリストCSVを読み込みました。\n追加: ${result.addedCount}件\nスキップ: ${result.skippedCount}件`);
+      window.alert(t("alert.playlistImportSuccess", { addedCount: result.addedCount, skippedCount: result.skippedCount }));
     } catch (error) {
-      window.alert(`プレイリストCSVを読み込めませんでした。\n${String(error)}`);
+      window.alert(t("alert.playlistImportError", { error: String(error) }));
     } finally {
       if (playlistCsvInputRef.current) {
         playlistCsvInputRef.current.value = "";
@@ -808,7 +811,7 @@ export function App() {
   };
 
   const deleteAliasRow = (row: AliasManagerRow) => {
-    const confirmed = window.confirm(`別名を削除しますか？\n${row.displayName}\n\n履歴と動画ファイルは削除されません。`);
+    const confirmed = window.confirm(t("confirm.deleteAlias", { name: row.displayName }));
     if (!confirmed) {
       return;
     }
@@ -1116,18 +1119,25 @@ export function App() {
           <header className="top-bar">
             <div>
               <p className="eyebrow">DF VR Player · {APP_BUILD}</p>
-              <h1>{fileName}</h1>
+              <h1>{displayFileName}</h1>
             </div>
             <div className="top-actions">
               <ProjectionModeSelector value={projectionMode} onChange={setProjectionMode} />
-              <button aria-label="情報" className="top-icon-button" type="button" title="情報" onClick={() => setIsAboutOpen(true)}>
+              <label className="language-select" title={t("app.language")}>
+                <span>{t("app.language")}</span>
+                <select value={language} onChange={(event) => setLanguage(event.currentTarget.value as Language)}>
+                  <option value="ja">{languageLabels.ja}</option>
+                  <option value="en">{languageLabels.en}</option>
+                </select>
+              </label>
+              <button aria-label={t("app.info")} className="top-icon-button" type="button" title={t("app.info")} onClick={() => setIsAboutOpen(true)}>
                 <Info size={18} strokeWidth={2.2} />
               </button>
               <button
-                aria-label="サイドパネル"
+                aria-label={t("app.sidePanel")}
                 className={`top-icon-button ${isHistoryVisible ? "is-active" : ""}`}
-                data-tooltip="サイドパネル"
-                title="サイドパネル"
+                data-tooltip={t("app.sidePanel")}
+                title={t("app.sidePanel")}
                 type="button"
                 onClick={() => setIsHistoryVisible((value) => !value)}
               >
@@ -1244,7 +1254,7 @@ export function App() {
             <div
               className="history-resizer"
               role="separator"
-              aria-label="履歴パネルの幅"
+              aria-label={t("app.historyPanelWidth")}
               onPointerDown={startHistoryResize}
               onPointerMove={resizeHistoryPanel}
               onPointerUp={stopHistoryResize}
@@ -1323,7 +1333,7 @@ export function App() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setAvailableRelease(null)}>
           <section className="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-title" onMouseDown={(event) => event.stopPropagation()}>
             <div>
-              <p className="eyebrow">アップデートがあります</p>
+              <p className="eyebrow">{t("update.available")}</p>
               <h2 id="update-title">{availableRelease.title}</h2>
             </div>
             <ul>
@@ -1336,7 +1346,7 @@ export function App() {
                 GitHub Release
               </button>
               <button type="button" onClick={() => openExternalUrl(availableRelease.download_url)}>
-                ダウンロード
+                {t("update.download")}
               </button>
               <button
                 type="button"
@@ -1345,7 +1355,7 @@ export function App() {
                   setAvailableRelease(null);
                 }}
               >
-                既読にする
+                {t("update.dismiss")}
               </button>
             </div>
           </section>
@@ -1353,7 +1363,7 @@ export function App() {
       )}
       {isDraggingVideo && (
         <div className="drop-overlay">
-          <div>動画をドロップして開く</div>
+          <div>{t("app.dropToOpen")}</div>
         </div>
       )}
     </div>

@@ -15,6 +15,7 @@ import {
   VolumeX,
   ZoomOut
 } from "lucide-react";
+import { useI18n } from "../i18n";
 import { PreviewEye } from "../vr/projectionModes";
 
 type ControlBarProps = {
@@ -87,39 +88,40 @@ export function ControlBar({
   onResetView,
   onResetZoom
 }: ControlBarProps) {
+  const { t } = useI18n();
   const [isRateMenuOpen, setIsRateMenuOpen] = useState(false);
   const [isVolumeMenuOpen, setIsVolumeMenuOpen] = useState(false);
-  const playLabel = isPlaying ? "一時停止" : "再生";
+  const playLabel = isPlaying ? t("control.pause") : t("control.play");
   const volumePercent = Math.round(volume * 100);
-  const volumeLabel = isMuted ? "ミュート中" : `音量 ${volumePercent}%`;
+  const volumeLabel = isMuted ? t("control.muted") : t("control.volumeWithPercent", { percent: volumePercent });
 
   return (
     <footer className="control-bar">
-      <button aria-label="開く" className="icon-button primary" data-tooltip="開く" type="button" onClick={onOpen}>
+      <button aria-label={t("control.open")} className="icon-button primary" data-tooltip={t("control.open")} type="button" onClick={onOpen}>
         <FolderOpen size={20} strokeWidth={2.2} />
       </button>
       <button aria-label={playLabel} className="icon-button" data-tooltip={playLabel} type="button" onClick={onTogglePlay}>
         {isPlaying ? <Pause size={20} strokeWidth={2.2} /> : <Play size={20} strokeWidth={2.2} />}
       </button>
       <button
-        aria-label="ブックマーク追加"
+        aria-label={t("control.addBookmark")}
         className="icon-button"
-        data-tooltip="ブックマーク追加"
+        data-tooltip={t("control.addBookmark")}
         type="button"
         disabled={!canAddBookmark}
         onClick={onAddBookmark}
       >
         <BookmarkPlus size={20} strokeWidth={2.2} />
       </button>
-      <button aria-label="前の動画" className="icon-button" data-tooltip="前の動画" type="button" disabled={!canGoPrevious} onClick={onPrevious}>
+      <button aria-label={t("control.previous")} className="icon-button" data-tooltip={t("control.previous")} type="button" disabled={!canGoPrevious} onClick={onPrevious}>
         <SkipBack size={20} strokeWidth={2.2} />
       </button>
-      <button aria-label="次の動画" className="icon-button" data-tooltip="次の動画" type="button" disabled={!canGoNext} onClick={onNext}>
+      <button aria-label={t("control.next")} className="icon-button" data-tooltip={t("control.next")} type="button" disabled={!canGoNext} onClick={onNext}>
         <SkipForward size={20} strokeWidth={2.2} />
       </button>
       <span className="time">{formatTime(currentTime)}</span>
       <input
-        aria-label="シーク"
+        aria-label={t("control.seek")}
         className="seek"
         max={Number.isFinite(duration) ? duration : 0}
         min={0}
@@ -131,7 +133,7 @@ export function ControlBar({
       <span className="time">{formatTime(duration)}</span>
       <div className="volume-menu">
         <button
-          aria-label="音量"
+          aria-label={t("control.volume")}
           className={`icon-button volume-button ${isMuted ? "is-muted" : ""}`}
           data-tooltip={volumeLabel}
           title={volumeLabel}
@@ -142,9 +144,9 @@ export function ControlBar({
           <span>{isMuted ? "off" : `${volumePercent}%`}</span>
         </button>
         {isVolumeMenuOpen && (
-          <div className="volume-popover" role="group" aria-label="音量">
+          <div className="volume-popover" role="group" aria-label={t("control.volume")}>
             <input
-              aria-label="音量"
+              aria-label={t("control.volume")}
               className="volume-vertical"
               max={1}
               min={0}
@@ -154,16 +156,16 @@ export function ControlBar({
               onChange={(event) => onVolume(Number(event.currentTarget.value))}
             />
             <button className={isMuted ? "is-selected" : ""} type="button" onClick={onToggleMute}>
-              {isMuted ? "解除" : "ミュート"}
+              {isMuted ? t("control.unmute") : t("control.mute")}
             </button>
           </div>
         )}
       </div>
       <div className="rate-menu">
         <button
-          aria-label="再生速度"
+          aria-label={t("control.playbackRate")}
           className="icon-button rate-button"
-          data-tooltip="再生速度"
+          data-tooltip={t("control.playbackRate")}
           type="button"
           onClick={() => setIsRateMenuOpen((value) => !value)}
         >
@@ -171,7 +173,7 @@ export function ControlBar({
           <span>{playbackRate}x</span>
         </button>
         {isRateMenuOpen && (
-          <div className="rate-options" role="menu" aria-label="再生速度">
+          <div className="rate-options" role="menu" aria-label={t("control.playbackRate")}>
             {playbackRates.map((rate) => (
               <button
                 key={rate}
@@ -190,11 +192,11 @@ export function ControlBar({
           </div>
         )}
       </div>
-      <div className="compact-segment" aria-label="プレビューする目">
+      <div className="compact-segment" aria-label={t("control.previewEye")}>
         <button
-          aria-label="左目"
+          aria-label={t("control.leftEye")}
           className={previewEye === "left" ? "is-selected" : ""}
-          data-tooltip="左目"
+          data-tooltip={t("control.leftEye")}
           type="button"
           onClick={() => onPreviewEye("left")}
         >
@@ -202,9 +204,9 @@ export function ControlBar({
           <span>L</span>
         </button>
         <button
-          aria-label="右目"
+          aria-label={t("control.rightEye")}
           className={previewEye === "right" ? "is-selected" : ""}
-          data-tooltip="右目"
+          data-tooltip={t("control.rightEye")}
           type="button"
           onClick={() => onPreviewEye("right")}
         >
@@ -213,27 +215,27 @@ export function ControlBar({
         </button>
       </div>
       <button
-        aria-label="左右反転"
+        aria-label={t("control.flipX")}
         className={`icon-button ${flipX ? "is-active" : ""}`}
-        data-tooltip="左右反転"
+        data-tooltip={t("control.flipX")}
         type="button"
         onClick={onToggleFlipX}
       >
         <FlipHorizontal size={20} strokeWidth={2.2} />
       </button>
       <button
-        aria-label="上下反転"
+        aria-label={t("control.flipY")}
         className={`icon-button ${flipY ? "is-active" : ""}`}
-        data-tooltip="上下反転"
+        data-tooltip={t("control.flipY")}
         type="button"
         onClick={onToggleFlipY}
       >
         <FlipVertical size={20} strokeWidth={2.2} />
       </button>
-      <button aria-label="視点リセット" className="icon-button" data-tooltip="視点リセット" type="button" onClick={onResetView}>
+      <button aria-label={t("control.resetView")} className="icon-button" data-tooltip={t("control.resetView")} type="button" onClick={onResetView}>
         <RotateCcw size={20} strokeWidth={2.2} />
       </button>
-      <button aria-label="ズームリセット" className="icon-button" data-tooltip="ズームリセット" type="button" onClick={onResetZoom}>
+      <button aria-label={t("control.resetZoom")} className="icon-button" data-tooltip={t("control.resetZoom")} type="button" onClick={onResetZoom}>
         <ZoomOut size={20} strokeWidth={2.2} />
       </button>
     </footer>

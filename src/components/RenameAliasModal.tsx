@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
 import { FileAlias, getFileAlias, HistoryItem } from "../state/historyStore";
 
 type RenameAliasModalProps = {
@@ -9,6 +10,7 @@ type RenameAliasModalProps = {
 };
 
 export function RenameAliasModal({ aliases, item, onClose, onSave }: RenameAliasModalProps) {
+  const { t } = useI18n();
   const [draftName, setDraftName] = useState(() => getFileAlias(aliases, item)?.displayName ?? item.name);
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export function RenameAliasModal({ aliases, item, onClose, onSave }: RenameAlias
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="rename-modal" role="dialog" aria-modal="true" aria-labelledby="rename-modal-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="rename-modal-header">
-          <h2 id="rename-modal-title">別名を編集</h2>
+          <h2 id="rename-modal-title">{t("rename.aliasTitle")}</h2>
           <p title={item.name}>{item.name}</p>
         </header>
         <div className="rename-modal-body">
@@ -48,10 +50,10 @@ export function RenameAliasModal({ aliases, item, onClose, onSave }: RenameAlias
         </div>
         <footer className="rename-modal-actions">
           <button type="button" onClick={commit}>
-            保存
+            {t("common.save")}
           </button>
           <button type="button" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </button>
         </footer>
       </section>

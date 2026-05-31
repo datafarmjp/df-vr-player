@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Bookmark, Download, FilePlus2, History, ListVideo, Pencil, Trash2, Upload, Video } from "lucide-react";
+import { useI18n } from "../i18n";
 import {
   BookmarkItem,
   BOOKMARK_LIMIT_PER_VIDEO,
@@ -44,13 +45,13 @@ type HistoryPanelProps = {
   onOpenAliasManager: () => void;
 };
 
-const formatDate = (value: string) => {
+const formatDate = (value: string, locale: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(locale, {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -80,17 +81,17 @@ const formatDuration = (value?: number) => {
   return formatTime(value ?? 0);
 };
 
-const playlistSortLabels: Record<PlaylistSortMode, string> = {
-  manual: "手動順",
-  name: "名前",
-  addedAt: "登録日時",
-  duration: "再生時間"
+const playlistSortLabelKeys: Record<PlaylistSortMode, string> = {
+  manual: "panel.sortManual",
+  name: "panel.sortName",
+  addedAt: "panel.sortAddedAt",
+  duration: "panel.sortDuration"
 };
 
-const panelTabs: { tab: SidePanelTab; label: string; icon: ReactNode }[] = [
-  { tab: "history", label: "履歴", icon: <History size={16} strokeWidth={2.2} /> },
-  { tab: "bookmarks", label: "ブックマーク", icon: <Bookmark size={16} strokeWidth={2.2} /> },
-  { tab: "playlist", label: "プレイリスト", icon: <ListVideo size={16} strokeWidth={2.2} /> }
+const panelTabs: { tab: SidePanelTab; labelKey: string; icon: ReactNode }[] = [
+  { tab: "history", labelKey: "panel.history", icon: <History size={16} strokeWidth={2.2} /> },
+  { tab: "bookmarks", labelKey: "panel.bookmarks", icon: <Bookmark size={16} strokeWidth={2.2} /> },
+  { tab: "playlist", labelKey: "panel.playlist", icon: <ListVideo size={16} strokeWidth={2.2} /> }
 ];
 
 const formatBadgeCount = (count: number) => (count > 99 ? "99+" : String(count));
@@ -124,6 +125,7 @@ export function HistoryPanel({
   onPlaylistSortMode,
   onOpenAliasManager
 }: HistoryPanelProps) {
+  const { locale, t } = useI18n();
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const visibleBookmarks = activeId ? bookmarks.filter((item) => item.sourceId === activeId) : bookmarks;
   const historyThumbnailById = new Map(items.filter((item) => item.thumbnailDataUrl).map((item) => [item.id, item.thumbnailDataUrl]));
@@ -138,12 +140,13 @@ export function HistoryPanel({
   };
 
   return (
-    <aside className="history-panel" aria-label="履歴">
+    <aside className="history-panel" aria-label={t("panel.aria")}>
       <div className="history-header">
-        <div className="panel-tabs" role="tablist" aria-label="履歴、ブックマーク、プレイリスト">
+        <div className="panel-tabs" role="tablist" aria-label={t("panel.tabsAria")}>
           {panelTabs.map((item) => {
             const count = getPanelTabCount(item.tab);
-            const tooltip = `${item.label} ${count}件`;
+            const label = t(item.labelKey);
+            const tooltip = t("panel.tabCount", { label, count });
             return (
               <button
                 key={item.tab}
@@ -166,61 +169,61 @@ export function HistoryPanel({
         {activeTab === "history" ? (
           <div className="history-header-actions">
             <button type="button" onClick={onOpenAliasManager}>
-              別名管理
+              {t("panel.aliasManager")}
             </button>
-            <button className="history-clear-button" type="button" onClick={onClear} disabled={items.length === 0} title="履歴を一括削除">
-              全削除
+            <button className="history-clear-button" type="button" onClick={onClear} disabled={items.length === 0} title={t("panel.clearHistoryTitle")}>
+              {t("panel.clearAll")}
             </button>
             <span>{items.length}/{HISTORY_LIMIT}</span>
           </div>
         ) : activeTab === "bookmarks" ? (
           <div className="history-header-actions">
-            <button className="history-clear-button" type="button" onClick={onClearBookmarks} disabled={bookmarks.length === 0} title="ブックマークを一括削除">
-              全削除
+            <button className="history-clear-button" type="button" onClick={onClearBookmarks} disabled={bookmarks.length === 0} title={t("panel.clearBookmarksTitle")}>
+              {t("panel.clearAll")}
             </button>
-            <span>{activeId ? `${visibleBookmarks.length}/${BOOKMARK_LIMIT_PER_VIDEO}` : `${visibleBookmarks.length}件`}</span>
+            <span>{activeId ? `${visibleBookmarks.length}/${BOOKMARK_LIMIT_PER_VIDEO}` : t("common.count", { count: visibleBookmarks.length })}</span>
           </div>
         ) : (
           <div className="history-header-actions playlist-header-actions">
-            <button type="button" onClick={onAddPlaylistVideos} title="動画を追加" data-tooltip="動画を追加" aria-label="動画を追加">
+            <button type="button" onClick={onAddPlaylistVideos} title={t("panel.addVideo")} data-tooltip={t("panel.addVideo")} aria-label={t("panel.addVideo")}>
               <FilePlus2 size={15} strokeWidth={2.2} />
-              <span>追加</span>
+              <span>{t("panel.add")}</span>
             </button>
-            <button type="button" onClick={onImportPlaylistCsv} title="CSV読込" data-tooltip="CSV読込" aria-label="CSV読込">
+            <button type="button" onClick={onImportPlaylistCsv} title={t("panel.importCsv")} data-tooltip={t("panel.importCsv")} aria-label={t("panel.importCsv")}>
               <Upload size={15} strokeWidth={2.2} />
             </button>
-            <button type="button" onClick={onExportPlaylistCsv} title="CSV保存" data-tooltip="CSV保存" aria-label="CSV保存" disabled={playlistItems.length === 0}>
+            <button type="button" onClick={onExportPlaylistCsv} title={t("panel.exportCsv")} data-tooltip={t("panel.exportCsv")} aria-label={t("panel.exportCsv")} disabled={playlistItems.length === 0}>
               <Download size={15} strokeWidth={2.2} />
             </button>
             <label>
-              <span>ソート</span>
+              <span>{t("panel.sort")}</span>
               <select value={playlistSortMode} onChange={(event) => onPlaylistSortMode(event.currentTarget.value as PlaylistSortMode)}>
-                {(Object.keys(playlistSortLabels) as PlaylistSortMode[]).map((sortMode) => (
+                {(Object.keys(playlistSortLabelKeys) as PlaylistSortMode[]).map((sortMode) => (
                   <option key={sortMode} value={sortMode}>
-                    {playlistSortLabels[sortMode]}
+                    {t(playlistSortLabelKeys[sortMode])}
                   </option>
                 ))}
               </select>
             </label>
             <button
-              aria-label={playlistSortDirection === "asc" ? "昇順" : "降順"}
-              data-tooltip={playlistSortDirection === "asc" ? "昇順" : "降順"}
-              title={playlistSortDirection === "asc" ? "昇順" : "降順"}
+              aria-label={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
+              data-tooltip={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
+              title={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
               type="button"
               onClick={() => onPlaylistSortDirection(playlistSortDirection === "asc" ? "desc" : "asc")}
             >
               {playlistSortDirection === "asc" ? <ArrowUp size={15} strokeWidth={2.2} /> : <ArrowDown size={15} strokeWidth={2.2} />}
             </button>
-            <button className="history-clear-button" type="button" onClick={onClearPlaylist} disabled={playlistItems.length === 0} title="プレイリストを一括削除">
-              全削除
+            <button className="history-clear-button" type="button" onClick={onClearPlaylist} disabled={playlistItems.length === 0} title={t("panel.clearPlaylistTitle")}>
+              {t("panel.clearAll")}
             </button>
-            <span>{playlistItems.length}件</span>
+            <span>{t("common.count", { count: playlistItems.length })}</span>
           </div>
         )}
       </div>
       {activeTab === "history" && (
         items.length === 0 ? (
-          <p className="history-empty">開いた動画がここに残ります。</p>
+          <p className="history-empty">{t("panel.historyEmpty")}</p>
         ) : (
           <div className="history-list">
             {items.map((item) => (
@@ -242,16 +245,16 @@ export function HistoryPanel({
                     {getFileAlias(aliases, item) && <span className="history-original">{item.name}</span>}
                     <span className="history-subline">
                       {item.missing
-                        ? "見つかりません"
-                        : `${Number.isFinite(item.durationSeconds) ? `長さ ${formatDuration(item.durationSeconds)} · ` : ""}再生 ${formatDate(item.lastOpenedAt)}`}
+                        ? t("panel.missing")
+                        : `${Number.isFinite(item.durationSeconds) ? `${t("panel.length", { duration: formatDuration(item.durationSeconds) })} · ` : ""}${t("panel.playedAt", { date: formatDate(item.lastOpenedAt, locale) })}`}
                     </span>
                   </span>
                 </button>
                 <div className="history-actions">
-                  <button aria-label="名前を編集" data-tooltip="名前を編集" type="button" onClick={() => onRequestRename(item)}>
+                  <button aria-label={t("panel.editName")} data-tooltip={t("panel.editName")} type="button" onClick={() => onRequestRename(item)}>
                     <Pencil size={15} strokeWidth={2.2} />
                   </button>
-                  <button aria-label="履歴から削除" data-tooltip="削除" type="button" onClick={() => onDelete(item)}>
+                  <button aria-label={t("panel.deleteFromHistory")} data-tooltip={t("common.delete")} type="button" onClick={() => onDelete(item)}>
                     <Trash2 size={15} strokeWidth={2.2} />
                   </button>
                 </div>
@@ -262,7 +265,7 @@ export function HistoryPanel({
       )}
       {activeTab === "bookmarks" && (
         visibleBookmarks.length === 0 ? (
-          <p className="history-empty">{activeId ? "この動画のブックマークはまだありません。" : "ブックマークがここに残ります。"}</p>
+          <p className="history-empty">{activeId ? t("panel.bookmarksEmptyCurrent") : t("panel.bookmarksEmpty")}</p>
         ) : (
           <div className="history-list">
             {visibleBookmarks.map((item) => (
@@ -282,14 +285,14 @@ export function HistoryPanel({
                   <span className="history-meta">
                     <span className="history-name">{item.displayName}</span>
                     <span className="history-original">{item.name}</span>
-                    <span className="history-subline">{item.missing ? "見つかりません" : `位置 ${formatTime(item.timeSeconds)}`}</span>
+                    <span className="history-subline">{item.missing ? t("panel.missing") : t("panel.position", { time: formatTime(item.timeSeconds) })}</span>
                   </span>
                 </button>
                 <div className="history-actions">
-                  <button aria-label="ブックマーク名を編集" data-tooltip="名前を編集" type="button" onClick={() => onRequestBookmarkRename(item)}>
+                  <button aria-label={t("panel.editBookmarkName")} data-tooltip={t("panel.editName")} type="button" onClick={() => onRequestBookmarkRename(item)}>
                     <Pencil size={15} strokeWidth={2.2} />
                   </button>
-                  <button aria-label="ブックマークを削除" data-tooltip="削除" type="button" onClick={() => onDeleteBookmark(item)}>
+                  <button aria-label={t("panel.deleteBookmark")} data-tooltip={t("common.delete")} type="button" onClick={() => onDeleteBookmark(item)}>
                     <Trash2 size={15} strokeWidth={2.2} />
                   </button>
                 </div>
@@ -300,7 +303,7 @@ export function HistoryPanel({
       )}
       {activeTab === "playlist" && (
         playlistItems.length === 0 ? (
-          <p className="history-empty">動画を追加するとここに並びます。</p>
+          <p className="history-empty">{t("panel.playlistEmpty")}</p>
         ) : (
           <div className="history-list">
             {playlistItems.map((item) => (
@@ -344,11 +347,15 @@ export function HistoryPanel({
                   <span className="history-meta">
                     <span className="history-name">{getFileAlias(aliases, item)?.displayName ?? item.name}</span>
                     {getFileAlias(aliases, item) && <span className="history-original">{item.name}</span>}
-                    <span className="history-subline">{item.missing ? "見つかりません" : `長さ ${formatDuration(item.durationSeconds)} · 追加 ${formatDate(item.addedAt)}`}</span>
+                    <span className="history-subline">
+                      {item.missing
+                        ? t("panel.missing")
+                        : `${t("panel.length", { duration: formatDuration(item.durationSeconds) })} · ${t("panel.addedAt", { date: formatDate(item.addedAt, locale) })}`}
+                    </span>
                   </span>
                 </button>
                 <div className="history-actions">
-                  <button aria-label="プレイリストから削除" data-tooltip="削除" type="button" onClick={() => onDeletePlaylistItem(item)}>
+                  <button aria-label={t("panel.deleteFromPlaylist")} data-tooltip={t("common.delete")} type="button" onClick={() => onDeletePlaylistItem(item)}>
                     <Trash2 size={15} strokeWidth={2.2} />
                   </button>
                 </div>

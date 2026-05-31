@@ -16,9 +16,9 @@ type OpenPlaylistVideosResult = NonNullable<OpenVideoResult>[] | null;
 
 interface Window {
   vr180?: {
-    openVideo: () => Promise<OpenVideoResult>;
-    openPlaylistVideos: () => Promise<OpenPlaylistVideosResult>;
-    openVideoFolder: () => Promise<OpenVideoFolderResult>;
+    openVideo: (language?: string) => Promise<OpenVideoResult>;
+    openPlaylistVideos: (language?: string) => Promise<OpenPlaylistVideosResult>;
+    openVideoFolder: (language?: string) => Promise<OpenVideoFolderResult>;
     openVideoPath: (path: string) => Promise<OpenVideoResult>;
     recoverVideoByName: (name: string) => Promise<OpenVideoResult>;
     openSupport: () => Promise<void>;

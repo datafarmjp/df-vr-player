@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import { ProjectionMode, projectionModeLabels } from "../vr/projectionModes";
 
 type ProjectionModeSelectorProps = {
@@ -26,8 +27,10 @@ const shortLabels: Record<ProjectionMode, string> = {
 };
 
 export function ProjectionModeSelector({ value, onChange }: ProjectionModeSelectorProps) {
+  const { t } = useI18n();
+
   return (
-    <div className="segmented-control" aria-label="投影モード">
+    <div className="segmented-control" aria-label={t("projection.aria")}>
       {modes.map((mode) => (
         <button
           key={mode}
