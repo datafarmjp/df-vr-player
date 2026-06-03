@@ -189,31 +189,6 @@ export function HistoryPanel({
               <FilePlus2 size={15} strokeWidth={2.2} />
               <span>{t("panel.add")}</span>
             </button>
-            <button type="button" onClick={onImportPlaylistCsv} title={t("panel.importCsv")} data-tooltip={t("panel.importCsv")} aria-label={t("panel.importCsv")}>
-              <Upload size={15} strokeWidth={2.2} />
-            </button>
-            <button type="button" onClick={onExportPlaylistCsv} title={t("panel.exportCsv")} data-tooltip={t("panel.exportCsv")} aria-label={t("panel.exportCsv")} disabled={playlistItems.length === 0}>
-              <Download size={15} strokeWidth={2.2} />
-            </button>
-            <label>
-              <span>{t("panel.sort")}</span>
-              <select value={playlistSortMode} onChange={(event) => onPlaylistSortMode(event.currentTarget.value as PlaylistSortMode)}>
-                {(Object.keys(playlistSortLabelKeys) as PlaylistSortMode[]).map((sortMode) => (
-                  <option key={sortMode} value={sortMode}>
-                    {t(playlistSortLabelKeys[sortMode])}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              aria-label={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
-              data-tooltip={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
-              title={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
-              type="button"
-              onClick={() => onPlaylistSortDirection(playlistSortDirection === "asc" ? "desc" : "asc")}
-            >
-              {playlistSortDirection === "asc" ? <ArrowUp size={15} strokeWidth={2.2} /> : <ArrowDown size={15} strokeWidth={2.2} />}
-            </button>
             <button className="history-clear-button" type="button" onClick={onClearPlaylist} disabled={playlistItems.length === 0} title={t("panel.clearPlaylistTitle")}>
               {t("panel.clearAll")}
             </button>
@@ -363,6 +338,37 @@ export function HistoryPanel({
             ))}
           </div>
         )
+      )}
+      {activeTab === "playlist" && (
+        <div className="playlist-footer-actions">
+          <div className="playlist-file-actions">
+            <button type="button" onClick={onImportPlaylistCsv} title={t("panel.importCsv")} data-tooltip={t("panel.importCsv")} aria-label={t("panel.importCsv")}>
+              <Upload size={15} strokeWidth={2.2} />
+            </button>
+            <button type="button" onClick={onExportPlaylistCsv} title={t("panel.exportCsv")} data-tooltip={t("panel.exportCsv")} aria-label={t("panel.exportCsv")} disabled={playlistItems.length === 0}>
+              <Download size={15} strokeWidth={2.2} />
+            </button>
+          </div>
+          <label>
+            <span>{t("panel.sort")}</span>
+            <select value={playlistSortMode} onChange={(event) => onPlaylistSortMode(event.currentTarget.value as PlaylistSortMode)}>
+              {(Object.keys(playlistSortLabelKeys) as PlaylistSortMode[]).map((sortMode) => (
+                <option key={sortMode} value={sortMode}>
+                  {t(playlistSortLabelKeys[sortMode])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            aria-label={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
+            data-tooltip={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
+            title={playlistSortDirection === "asc" ? t("panel.sortAsc") : t("panel.sortDesc")}
+            type="button"
+            onClick={() => onPlaylistSortDirection(playlistSortDirection === "asc" ? "desc" : "asc")}
+          >
+            {playlistSortDirection === "asc" ? <ArrowUp size={15} strokeWidth={2.2} /> : <ArrowDown size={15} strokeWidth={2.2} />}
+          </button>
+        </div>
       )}
     </aside>
   );
