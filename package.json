@@ -49,7 +49,11 @@
       "category": "public.app-category.video",
       "entitlements": "build/entitlements.mas.plist",
       "entitlementsInherit": "build/entitlements.mas.inherit.plist",
+      "extendInfo": {
+        "ElectronTeamID": "X66H7GF9RT"
+      },
       "hardenedRuntime": false,
+      "preAutoEntitlements": false,
       "target": [
         {
           "target": "mas",
