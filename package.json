@@ -10,6 +10,7 @@
     "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on tcp:5173 dist-electron/main.js && electron .\"",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.electron.json && vite build",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:mas": "VITE_DISTRIBUTION=mas npm run build && electron-builder --mac mas --publish never",
     "release:json": "node scripts/generate-release-json.mjs",
     "release:sync": "bash scripts/sync-release-sftp.sh",
     "preview": "vite preview",
@@ -38,6 +39,20 @@
         },
         {
           "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "mas": {
+      "category": "public.app-category.video",
+      "entitlements": "build/entitlements.mas.plist",
+      "entitlementsInherit": "build/entitlements.mas.inherit.plist",
+      "hardenedRuntime": false,
+      "target": [
+        {
+          "target": "mas",
           "arch": [
             "arm64"
           ]
