@@ -4,12 +4,13 @@ import { languageLabels, useI18n, type Language } from "../i18n";
 
 type SettingsModalProps = {
   build: string;
+  isMas: boolean;
   version: string;
   onClose: () => void;
   onOpenSupport: () => void;
 };
 
-export function SettingsModal({ build, version, onClose, onOpenSupport }: SettingsModalProps) {
+export function SettingsModal({ build, isMas, version, onClose, onOpenSupport }: SettingsModalProps) {
   const { language, setLanguage, t } = useI18n();
 
   useEffect(() => {
@@ -67,11 +68,13 @@ export function SettingsModal({ build, version, onClose, onOpenSupport }: Settin
             </div>
           </dl>
           <p className="settings-copyright">{t("about.copyright")}</p>
-          <div className="settings-actions">
-            <button type="button" onClick={onOpenSupport}>
-              {t("about.support")}
-            </button>
-          </div>
+          {!isMas && (
+            <div className="settings-actions">
+              <button type="button" onClick={onOpenSupport}>
+                {t("about.support")}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>

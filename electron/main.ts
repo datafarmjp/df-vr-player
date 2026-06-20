@@ -5,9 +5,12 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined || !app.isPackaged;
+const isMasDistribution = process.mas === true || process.env.VITE_DISTRIBUTION === "mas";
 const supportUrl = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const releaseInfoUrl = "https://info.datafarm.jp/media/releases/DF_VRPlayer/latest.json";
+const securityBookmarkStorageKey = "df-vr-player:security-scoped-bookmarks";
 type Language = "ja" | "en";
+type SecurityBookmarkMap = Record<string, string>;
 
 const dialogTranslations: Record<Language, Record<string, string>> = {
   ja: {
@@ -53,6 +56,52 @@ const writeStorage = (storage: Record<string, string>) => {
   fsSync.renameSync(tempPath, filePath);
 };
 
+const readSecurityBookmarks = (): SecurityBookmarkMap => {
+  const raw = readStorage()[securityBookmarkStorageKey];
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as SecurityBookmarkMap : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveSecurityBookmark = (filePath: string, bookmark: string | undefined) => {
+  if (!isMasDistribution || !bookmark) {
+    return;
+  }
+
+  const storage = readStorage();
+  const bookmarks = readSecurityBookmarks();
+  bookmarks[filePath] = bookmark;
+  storage[securityBookmarkStorageKey] = JSON.stringify(bookmarks);
+  writeStorage(storage);
+};
+
+const activeSecurityResources = new Map<string, () => void>();
+
+const startSecurityScopedAccess = (filePath: string) => {
+  if (!isMasDistribution || activeSecurityResources.has(filePath)) {
+    return;
+  }
+
+  const bookmark = readSecurityBookmarks()[filePath];
+  if (!bookmark) {
+    return;
+  }
+
+  try {
+    const stopAccessing = app.startAccessingSecurityScopedResource(bookmark) as () => void;
+    activeSecurityResources.set(filePath, stopAccessing);
+  } catch {
+    activeSecurityResources.delete(filePath);
+  }
+};
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1280,
@@ -77,7 +126,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  const createVideoResult = async (inputPath: string) => {
+  const createVideoResult = async (inputPath: string, bookmark?: string) => {
     if (inputPath.startsWith("blob:") || inputPath.startsWith("http://") || inputPath.startsWith("https://")) {
       return {
         path: "",
@@ -91,6 +140,8 @@ app.whenReady().then(() => {
       : inputPath.startsWith("file:")
         ? fileURLToPath(inputPath)
         : inputPath;
+    saveSecurityBookmark(filePath, bookmark);
+    startSecurityScopedAccess(filePath);
     return {
       path: filePath,
       url: pathToFileURL(filePath).toString(),
@@ -103,6 +154,7 @@ app.whenReady().then(() => {
     const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const dialogOptions: OpenDialogOptions = {
       title: labels.openVideoTitle,
+      securityScopedBookmarks: isMasDistribution,
       properties: ["openFile"],
       filters: [
         { name: labels.videoFiles, extensions: ["mp4", "mov", "m4v", "webm"] },
@@ -117,7 +169,7 @@ app.whenReady().then(() => {
       return null;
     }
 
-    return createVideoResult(result.filePaths[0]);
+    return createVideoResult(result.filePaths[0], result.bookmarks?.[0]);
   });
 
   ipcMain.handle("dialog:openPlaylistVideos", async (_event, language?: string) => {
@@ -126,6 +178,7 @@ app.whenReady().then(() => {
     const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const dialogOptions: OpenDialogOptions = {
       title: labels.addPlaylistVideosTitle,
+      securityScopedBookmarks: isMasDistribution,
       properties: ["openFile", "multiSelections"],
       filters: [
         { name: labels.videoFiles, extensions: ["mp4", "mov", "m4v", "webm"] },
@@ -140,11 +193,16 @@ app.whenReady().then(() => {
       return null;
     }
 
+    const selectedFiles = result.filePaths.map((filePath, index) => ({
+      filePath,
+      bookmark: result.bookmarks?.[index]
+    }));
+
     return Promise.all(
-      result.filePaths
-        .filter((filePath) => isVideoFileName(filePath))
-        .sort((a, b) => path.basename(a).localeCompare(path.basename(b), normalizedLanguage, { numeric: true }))
-        .map(createVideoResult)
+      selectedFiles
+        .filter((item) => isVideoFileName(item.filePath))
+        .sort((a, b) => path.basename(a.filePath).localeCompare(path.basename(b.filePath), normalizedLanguage, { numeric: true }))
+        .map((item) => createVideoResult(item.filePath, item.bookmark))
     );
   });
 
@@ -154,6 +212,7 @@ app.whenReady().then(() => {
     const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const dialogOptions: OpenDialogOptions = {
       title: labels.addVideoFolderTitle,
+      securityScopedBookmarks: isMasDistribution,
       properties: ["openDirectory"]
     };
     const result = parentWindow
@@ -188,10 +247,15 @@ app.whenReady().then(() => {
       return null;
     }
 
+    startSecurityScopedAccess(filePath);
     return createVideoResult(filePath);
   });
 
   ipcMain.handle("video:recoverByName", async (_event, fileName: string) => {
+    if (isMasDistribution) {
+      return null;
+    }
+
     if (!fileName || fileName.includes(path.sep)) {
       return null;
     }
@@ -201,10 +265,18 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("shell:openSupport", async () => {
+    if (isMasDistribution) {
+      return;
+    }
+
     await shell.openExternal(supportUrl);
   });
 
   ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+    if (isMasDistribution) {
+      return;
+    }
+
     if (!url.startsWith("https://")) {
       return;
     }
@@ -212,6 +284,10 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("release:check", async () => {
+    if (isMasDistribution) {
+      return null;
+    }
+
     const response = await fetch(releaseInfoUrl, {
       headers: {
         accept: "application/json"

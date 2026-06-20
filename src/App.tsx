@@ -210,6 +210,7 @@ export function App() {
   const canGoPrevious = currentPlaylistIndex > 0;
   const canGoNext = sortedPlaylistItems.length > 0 && currentPlaylistIndex >= 0 && currentPlaylistIndex < sortedPlaylistItems.length - 1;
   const displayFileName = fileName || t("app.noSelection");
+  const isMas = window.vr180?.isMas === true || import.meta.env.VITE_DISTRIBUTION === "mas";
 
   const currentSettings = (): HistorySettings => ({
     projectionMode,
@@ -994,6 +995,10 @@ export function App() {
   }, [historyPanelWidth]);
 
   useEffect(() => {
+    if (isMas) {
+      return;
+    }
+
     let isCancelled = false;
 
     const checkRelease = async () => {
@@ -1019,7 +1024,7 @@ export function App() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [isMas]);
 
   useEffect(() => {
     let dragDepth = 0;
@@ -1297,6 +1302,7 @@ export function App() {
       {isSettingsOpen && (
         <SettingsModal
           build={APP_BUILD}
+          isMas={isMas}
           version={APP_VERSION}
           onClose={() => setIsSettingsOpen(false)}
           onOpenSupport={() => {

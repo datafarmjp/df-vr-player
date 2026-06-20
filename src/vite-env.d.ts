@@ -16,6 +16,7 @@ type OpenPlaylistVideosResult = NonNullable<OpenVideoResult>[] | null;
 
 interface Window {
   vr180?: {
+    isMas: boolean;
     openVideo: (language?: string) => Promise<OpenVideoResult>;
     openPlaylistVideos: (language?: string) => Promise<OpenPlaylistVideosResult>;
     openVideoFolder: (language?: string) => Promise<OpenVideoFolderResult>;

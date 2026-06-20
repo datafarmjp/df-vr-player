@@ -15,6 +15,7 @@ export type OpenVideoFolderResult = {
 export type OpenPlaylistVideosResult = NonNullable<OpenVideoResult>[] | null;
 
 contextBridge.exposeInMainWorld("vr180", {
+  isMas: process.mas === true || process.env.VITE_DISTRIBUTION === "mas",
   openVideo: (language?: string) => ipcRenderer.invoke("dialog:openVideo", language) as Promise<OpenVideoResult>,
   openPlaylistVideos: (language?: string) => ipcRenderer.invoke("dialog:openPlaylistVideos", language) as Promise<OpenPlaylistVideosResult>,
   openVideoFolder: (language?: string) => ipcRenderer.invoke("dialog:openVideoFolder", language) as Promise<OpenVideoFolderResult>,
