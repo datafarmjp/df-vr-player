@@ -55,6 +55,7 @@
       },
       "hardenedRuntime": false,
       "preAutoEntitlements": false,
+      "provisioningProfile": "/Users/taka0205/Library/Mobile Documents/com~apple~CloudDocs/Downloads/DF_VR_Player_Mac_App_Store.provisionprofile",
       "target": [
         {
           "target": "mas",
