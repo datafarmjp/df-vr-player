@@ -19,7 +19,7 @@
   "build": {
     "appId": "jp.datafarm.df-vr-player",
     "productName": "DF VR Player",
-    "buildVersion": "2",
+    "buildVersion": "3",
     "directories": {
       "output": "release"
     },
