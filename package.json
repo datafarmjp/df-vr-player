@@ -19,7 +19,7 @@
   "build": {
     "appId": "jp.datafarm.df-vr-player",
     "productName": "DF VR Player",
-    "buildVersion": "4",
+    "buildVersion": "5",
     "directories": {
       "output": "release"
     },
@@ -30,6 +30,9 @@
     ],
     "mac": {
       "category": "public.app-category.video",
+      "extendInfo": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "icon": "assets/icon.png",
       "minimumSystemVersion": "12.0",
       "target": [
@@ -52,7 +55,8 @@
       "entitlements": "build/entitlements.mas.plist",
       "entitlementsInherit": "build/entitlements.mas.inherit.plist",
       "extendInfo": {
-        "ElectronTeamID": "X66H7GF9RT"
+        "ElectronTeamID": "X66H7GF9RT",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "hardenedRuntime": false,
       "preAutoEntitlements": false,
