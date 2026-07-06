@@ -274,40 +274,30 @@ app.whenReady().then(() => {
     return recoveredPath ? createVideoResult(recoveredPath) : null;
   });
 
-  ipcMain.handle("shell:openSupport", async () => {
-    if (isMasDistribution) {
-      return;
-    }
-
-    await shell.openExternal(supportUrl);
-  });
-
-  ipcMain.handle("shell:openExternal", async (_event, url: string) => {
-    if (isMasDistribution) {
-      return;
-    }
-
-    if (!url.startsWith("https://")) {
-      return;
-    }
-    await shell.openExternal(url);
-  });
-
-  ipcMain.handle("release:check", async () => {
-    if (isMasDistribution) {
-      return null;
-    }
-
-    const response = await fetch(releaseInfoUrl, {
-      headers: {
-        accept: "application/json"
-      }
+  if (!isMasDistribution) {
+    ipcMain.handle("shell:openSupport", async () => {
+      await shell.openExternal(supportUrl);
     });
-    if (!response.ok) {
-      throw new Error(`Release check failed: ${response.status}`);
-    }
-    return response.json();
-  });
+
+    ipcMain.handle("shell:openExternal", async (_event, url: string) => {
+      if (!url.startsWith("https://")) {
+        return;
+      }
+      await shell.openExternal(url);
+    });
+
+    ipcMain.handle("release:check", async () => {
+      const response = await fetch(releaseInfoUrl, {
+        headers: {
+          accept: "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Release check failed: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
 
   ipcMain.on("storage:get", (event, key: string) => {
     if (!key.startsWith("vr-smb-player:")) {

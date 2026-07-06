@@ -66,9 +66,8 @@ type VideoSource = {
   remember: boolean;
 };
 
-const APP_BUILD = "2026-06-03 playlist-actions-1";
-const APP_VERSION = "0.1.12";
-const SUPPORT_URL = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
+const APP_BUILD = "2026-07-06 mas-submission-4";
+const APP_VERSION = "1.0.0";
 const videoExtensions = [".mp4", ".mov", ".m4v", ".webm"];
 const HISTORY_PANEL_VISIBLE_KEY = "vr-smb-player:history-panel-visible";
 const HISTORY_PANEL_WIDTH_KEY = "vr-smb-player:history-panel-width";
@@ -232,6 +231,10 @@ export function App() {
   };
 
   const openExternalUrl = (url: string) => {
+    if (isMas) {
+      return;
+    }
+
     const encodedUrl = encodeURI(url);
     if (window.vr180?.openExternal) {
       void window.vr180.openExternal(encodedUrl);
@@ -1308,9 +1311,7 @@ export function App() {
           onOpenSupport={() => {
             if (window.vr180?.openSupport) {
               void window.vr180.openSupport();
-              return;
             }
-            window.open(SUPPORT_URL, "_blank", "noopener,noreferrer");
           }}
         />
       )}
@@ -1329,7 +1330,7 @@ export function App() {
           onSave={(displayName) => renameBookmarkItem(renamingBookmarkItem, displayName)}
         />
       )}
-      {availableRelease && (
+      {!isMas && availableRelease && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setAvailableRelease(null)}>
           <section className="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-title" onMouseDown={(event) => event.stopPropagation()}>
             <div>
