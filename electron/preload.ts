@@ -31,7 +31,6 @@ contextBridge.exposeInMainWorld("vr180", isMas
   ? baseApi
   : {
       ...baseApi,
-      openSupport: () => ipcRenderer.invoke("shell:openSupport") as Promise<void>,
       openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url) as Promise<void>,
       checkRelease: () => ipcRenderer.invoke("release:check") as Promise<unknown>
     });

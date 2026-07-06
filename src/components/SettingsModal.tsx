@@ -1,16 +1,14 @@
 import { useEffect } from "react";
 import appIconUrl from "../assets/icon.png";
-import { languageLabels, useI18n, type Language } from "../i18n";
+import { languageLabels, supportedLanguages, useI18n, type Language } from "../i18n";
 
 type SettingsModalProps = {
   build: string;
-  isMas: boolean;
   version: string;
   onClose: () => void;
-  onOpenSupport: () => void;
 };
 
-export function SettingsModal({ build, isMas, version, onClose, onOpenSupport }: SettingsModalProps) {
+export function SettingsModal({ build, version, onClose }: SettingsModalProps) {
   const { language, setLanguage, t } = useI18n();
 
   useEffect(() => {
@@ -42,8 +40,11 @@ export function SettingsModal({ build, isMas, version, onClose, onOpenSupport }:
           <label className="settings-row">
             <span>{t("settings.language")}</span>
             <select value={language} onChange={(event) => setLanguage(event.currentTarget.value as Language)}>
-              <option value="ja">{languageLabels.ja}</option>
-              <option value="en">{languageLabels.en}</option>
+              {supportedLanguages.map((supportedLanguage) => (
+                <option key={supportedLanguage} value={supportedLanguage}>
+                  {languageLabels[supportedLanguage]}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -68,13 +69,6 @@ export function SettingsModal({ build, isMas, version, onClose, onOpenSupport }:
             </div>
           </dl>
           <p className="settings-copyright">{t("about.copyright")}</p>
-          {!isMas && (
-            <div className="settings-actions">
-              <button type="button" onClick={onOpenSupport}>
-                {t("about.support")}
-              </button>
-            </div>
-          )}
         </div>
       </section>
     </div>

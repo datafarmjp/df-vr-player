@@ -1305,14 +1305,8 @@ export function App() {
       {isSettingsOpen && (
         <SettingsModal
           build={APP_BUILD}
-          isMas={isMas}
           version={APP_VERSION}
           onClose={() => setIsSettingsOpen(false)}
-          onOpenSupport={() => {
-            if (window.vr180?.openSupport) {
-              void window.vr180.openSupport();
-            }
-          }}
         />
       )}
       {renamingHistoryItem && (

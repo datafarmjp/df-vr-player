@@ -22,7 +22,6 @@ interface Window {
     openVideoFolder: (language?: string) => Promise<OpenVideoFolderResult>;
     openVideoPath: (path: string) => Promise<OpenVideoResult>;
     recoverVideoByName: (name: string) => Promise<OpenVideoResult>;
-    openSupport?: () => Promise<void>;
     openExternal?: (url: string) => Promise<void>;
     checkRelease?: () => Promise<unknown>;
     getStorageItem: (key: string) => string | null;

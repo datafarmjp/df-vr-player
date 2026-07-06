@@ -6,10 +6,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined || !app.isPackaged;
 const isMasDistribution = process.mas === true || process.env.VITE_DISTRIBUTION === "mas";
-const supportUrl = "https://buy.stripe.com/bJe4gyb7O6Gj66jbh49ws05";
 const releaseInfoUrl = "https://info.datafarm.jp/media/releases/DF_VRPlayer/latest.json";
 const securityBookmarkStorageKey = "df-vr-player:security-scoped-bookmarks";
-type Language = "ja" | "en";
+type Language = "ja" | "en" | "zh-Hans" | "zh-Hant" | "ko" | "es";
 type SecurityBookmarkMap = Record<string, string>;
 
 const dialogTranslations: Record<Language, Record<string, string>> = {
@@ -26,14 +25,59 @@ const dialogTranslations: Record<Language, Record<string, string>> = {
     addVideoFolderTitle: "Add Video Folder",
     videoFiles: "Video Files",
     allFiles: "All Files"
+  },
+  "zh-Hans": {
+    openVideoTitle: "打开 VR180 视频",
+    addPlaylistVideosTitle: "将视频添加到播放列表",
+    addVideoFolderTitle: "添加视频文件夹",
+    videoFiles: "视频文件",
+    allFiles: "所有文件"
+  },
+  "zh-Hant": {
+    openVideoTitle: "開啟 VR180 影片",
+    addPlaylistVideosTitle: "將影片新增到播放列表",
+    addVideoFolderTitle: "新增影片資料夾",
+    videoFiles: "影片檔案",
+    allFiles: "所有檔案"
+  },
+  ko: {
+    openVideoTitle: "VR180 동영상 열기",
+    addPlaylistVideosTitle: "재생 목록에 동영상 추가",
+    addVideoFolderTitle: "동영상 폴더 추가",
+    videoFiles: "동영상 파일",
+    allFiles: "모든 파일"
+  },
+  es: {
+    openVideoTitle: "Abrir video VR180",
+    addPlaylistVideosTitle: "Añadir videos a la lista",
+    addVideoFolderTitle: "Añadir carpeta de videos",
+    videoFiles: "Archivos de video",
+    allFiles: "Todos los archivos"
   }
 };
 
 const normalizeLanguage = (language: unknown): Language => {
-  if (language === "ja" || language === "en") {
+  if (language === "ja" || language === "en" || language === "zh-Hans" || language === "zh-Hant" || language === "ko" || language === "es") {
     return language;
   }
-  return app.getLocale().toLowerCase().startsWith("en") ? "en" : "ja";
+
+  const normalized = String(language ?? app.getLocale()).toLowerCase();
+  if (normalized.startsWith("zh-hans") || normalized === "zh-cn" || normalized === "zh-sg") {
+    return "zh-Hans";
+  }
+  if (normalized.startsWith("zh-hant") || normalized === "zh-tw" || normalized === "zh-hk" || normalized === "zh-mo") {
+    return "zh-Hant";
+  }
+  if (normalized.startsWith("ko")) {
+    return "ko";
+  }
+  if (normalized.startsWith("es")) {
+    return "es";
+  }
+  if (normalized.startsWith("en")) {
+    return "en";
+  }
+  return "ja";
 };
 
 const storageFilePath = () => path.join(app.getPath("userData"), "storage.json");
@@ -275,10 +319,6 @@ app.whenReady().then(() => {
   });
 
   if (!isMasDistribution) {
-    ipcMain.handle("shell:openSupport", async () => {
-      await shell.openExternal(supportUrl);
-    });
-
     ipcMain.handle("shell:openExternal", async (_event, url: string) => {
       if (!url.startsWith("https://")) {
         return;
