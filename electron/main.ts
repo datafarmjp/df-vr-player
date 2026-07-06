@@ -85,20 +85,28 @@ const saveSecurityBookmark = (filePath: string, bookmark: string | undefined) =>
 const activeSecurityResources = new Map<string, () => void>();
 
 const startSecurityScopedAccess = (filePath: string) => {
-  if (!isMasDistribution || activeSecurityResources.has(filePath)) {
+  if (!isMasDistribution) {
     return;
   }
 
-  const bookmark = readSecurityBookmarks()[filePath];
+  const bookmarks = readSecurityBookmarks();
+  const scopePath = Object.keys(bookmarks)
+    .filter((storedPath) => filePath === storedPath || filePath.startsWith(`${storedPath}${path.sep}`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (!scopePath || activeSecurityResources.has(scopePath)) {
+    return;
+  }
+
+  const bookmark = bookmarks[scopePath];
   if (!bookmark) {
     return;
   }
 
   try {
     const stopAccessing = app.startAccessingSecurityScopedResource(bookmark) as () => void;
-    activeSecurityResources.set(filePath, stopAccessing);
+    activeSecurityResources.set(scopePath, stopAccessing);
   } catch {
-    activeSecurityResources.delete(filePath);
+    activeSecurityResources.delete(scopePath);
   }
 };
 
@@ -224,6 +232,8 @@ app.whenReady().then(() => {
     }
 
     const folderPath = result.filePaths[0];
+    saveSecurityBookmark(folderPath, result.bookmarks?.[0]);
+    startSecurityScopedAccess(folderPath);
     const entries = await fs.readdir(folderPath, { withFileTypes: true }).catch(() => []);
     const videos = entries
       .filter((entry) => entry.isFile() && isVideoFileName(entry.name))
